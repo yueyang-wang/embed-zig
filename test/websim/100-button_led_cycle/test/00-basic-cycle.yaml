@@ -1,0 +1,26 @@
+name: button long press toggle
+firmware: 100-button_led_cycle
+steps:
+  - send: { op: "cmd", t: 0, dev: "sys", v: { cmd: "reset" } }
+  - expect: { op: "set", t: 0, dev: "led0", v: { on: false, r: 0, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 100, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 400, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 700, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1200, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 1200, dev: "led0", v: { on: true, r: 255, g: 255, b: 255 } }
+
+  - send: { op: "input", t: 2000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2300, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2600, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2900, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 3100, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 3100, dev: "led0", v: { on: false, r: 0, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 4000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4300, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4600, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4900, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 5100, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 5100, dev: "led0", v: { on: true, r: 255, g: 255, b: 255 } }

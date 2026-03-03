@@ -1,0 +1,35 @@
+name: mixed single and double click patterns
+firmware: 100-button_led_cycle
+description: Alternating single and double clicks; single click from green goes to red
+steps:
+  - send: { op: "cmd", t: 0, dev: "sys", v: { cmd: "reset" } }
+  - expect: { op: "set", t: 0, dev: "led0", v: { on: false, r: 0, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 100, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 400, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 700, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1200, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 1200, dev: "led0", v: { on: true, r: 255, g: 255, b: 255 } }
+
+  - send: { op: "input", t: 2000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2050, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 2050, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 2500, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2550, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 2550, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+  - send: { op: "input", t: 2700, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2750, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 2750, dev: "led0", v: { on: true, r: 0, g: 255, b: 0 } }
+
+  - send: { op: "input", t: 3500, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 3550, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 3550, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 4000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4050, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 4050, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+  - send: { op: "input", t: 4200, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4250, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 4250, dev: "led0", v: { on: true, r: 0, g: 255, b: 0 } }

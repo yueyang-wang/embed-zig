@@ -1,0 +1,50 @@
+name: red sticky and double click from green
+firmware: 100-button_led_cycle
+description: Verify red stays on repeated single clicks; double click from green produces intermediate red then green
+steps:
+  - send: { op: "cmd", t: 0, dev: "sys", v: { cmd: "reset" } }
+  - expect: { op: "set", t: 0, dev: "led0", v: { on: false, r: 0, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 100, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 400, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 700, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1200, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 1200, dev: "led0", v: { on: true, r: 255, g: 255, b: 255 } }
+
+  - send: { op: "input", t: 2000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2050, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 2050, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 2500, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 2550, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 2550, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 3000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 3050, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 3050, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 3500, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 3550, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 3550, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 4000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4050, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 4050, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+  - send: { op: "input", t: 4200, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4250, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 4250, dev: "led0", v: { on: true, r: 0, g: 255, b: 0 } }
+
+  - send: { op: "input", t: 4700, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4750, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 4750, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+  - send: { op: "input", t: 4900, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 4950, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 4950, dev: "led0", v: { on: true, r: 0, g: 255, b: 0 } }
+
+  - send: { op: "input", t: 5400, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 5450, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 5450, dev: "led0", v: { on: true, r: 255, g: 0, b: 0 } }
+  - send: { op: "input", t: 5600, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 5650, dev: "btn_boot", v: { action: "release" } }
+  - expect: { op: "set", t: 5650, dev: "led0", v: { on: true, r: 0, g: 255, b: 0 } }

@@ -1,0 +1,14 @@
+name: press down without release timeout
+firmware: 100-button_led_cycle
+description: Test behavior when only press_down events without release
+steps:
+  - send: { op: "cmd", t: 0, dev: "sys", v: { cmd: "reset" } }
+  - expect: { op: "set", t: 0, dev: "led0", v: { on: false, r: 0, g: 0, b: 0 } }
+
+  - send: { op: "input", t: 100, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 400, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 700, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 1000, dev: "btn_boot", v: { action: "press_down" } }
+
+  - send: { op: "input", t: 5000, dev: "btn_boot", v: { action: "press_down" } }
+  - send: { op: "input", t: 10000, dev: "btn_boot", v: { action: "press_down" } }
