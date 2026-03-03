@@ -29,7 +29,6 @@ pub const StdOtaBackend = ota_backend.StdOtaBackend;
 pub const StdCrypto = @import("crypto/root.zig");
 
 pub const StdRuntimeDecl = struct {
-    pub const Profile = runtime.profile.RuntimeProfile.evented;
     pub const Time = StdTime;
     pub const Log = StdLog;
     pub const Rng = StdRng;
@@ -46,4 +45,4 @@ pub const StdRuntimeDecl = struct {
     pub const Crypto = StdCrypto;
 };
 
-pub const StdRuntime = runtime.from(StdRuntimeDecl);
+pub const StdRuntime = runtime.Runtime(StdRuntimeDecl);

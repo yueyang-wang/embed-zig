@@ -12,11 +12,16 @@ const netif = @import("netif.zig");
 const ota_backend = @import("ota_backend.zig");
 const root = @import("root.zig");
 
+const std_time: time.StdTime = .{};
+const std_rng: rng.StdRng = .{};
+const std_system: system.StdSystem = .{};
+const std_netif: netif.StdNetIf = .{};
+
 var unique_counter = std.atomic.Value(u64).init(0);
 
 fn makeTmpPath(comptime tag: []const u8, comptime suffix: []const u8, buf: []u8) []const u8 {
     const id = unique_counter.fetchAdd(1, .seq_cst);
-    return std.fmt.bufPrint(buf, "/tmp/embed_zig_runtime_{s}_{d}_{d}{s}", .{ tag, time.StdTime.nowMs(), id, suffix }) catch unreachable;
+    return std.fmt.bufPrint(buf, "/tmp/embed_zig_runtime_{s}_{d}_{d}{s}", .{ tag, std_time.nowMs(), id, suffix }) catch unreachable;
 }
 
 fn markDone(ctx: ?*anyopaque) void {
@@ -26,7 +31,7 @@ fn markDone(ctx: ?*anyopaque) void {
 
 fn notifyAfterDelay(ctx: ?*anyopaque) void {
     const n: *sync.StdNotify = @ptrCast(@alignCast(ctx.?));
-    time.StdTime.sleepMs(20);
+    std_time.sleepMs(20);
     n.signal();
 }
 
@@ -56,8 +61,12 @@ fn tcpServerEcho(ctx: ?*anyopaque) void {
     _ = c.ok.fetchAdd(1, .seq_cst);
 }
 
-test "std runtime evented profile validate" {
-    _ = root.StdRuntime;
+test "std runtime init creates instance" {
+    var rt = try root.StdRuntime.init(std.testing.allocator);
+    defer rt.deinit();
+
+    const now = rt.time.nowMs();
+    try std.testing.expect(now > 0);
 }
 
 test "std thread spawn/join executes task" {
@@ -90,7 +99,7 @@ test "std condition wait/signal works" {
     defer ctx.mutex.deinit();
 
     var th = try thread.StdThread.spawn(.{}, waiter.run, @ptrCast(&ctx));
-    time.StdTime.sleepMs(10);
+    std_time.sleepMs(10);
 
     ctx.mutex.lock();
     ctx.ready = true;
@@ -119,13 +128,13 @@ test "std notify timedWait" {
 test "std rng fills bytes" {
     var a: [32]u8 = undefined;
     var b: [32]u8 = undefined;
-    try rng.StdRng.fill(&a);
-    try rng.StdRng.fill(&b);
+    try std_rng.fill(&a);
+    try std_rng.fill(&b);
     try std.testing.expect(!std.mem.eql(u8, &a, &b));
 }
 
 test "std system getCpuCount" {
-    const cpu = try system.StdSystem.getCpuCount();
+    const cpu = try std_system.getCpuCount();
     try std.testing.expect(cpu >= 1);
 }
 
@@ -246,18 +255,18 @@ test "std socket udp recvFrom/sendTo" {
 }
 
 test "std netif dns and default interface" {
-    const names = netif.StdNetIf.list();
+    const names = std_netif.list();
     try std.testing.expect(names.len >= 1);
 
-    const maybe_info = netif.StdNetIf.get(names[0]);
+    const maybe_info = std_netif.get(names[0]);
     try std.testing.expect(maybe_info != null);
 
-    netif.StdNetIf.setDefault(names[0]);
-    const def = netif.StdNetIf.getDefault().?;
+    std_netif.setDefault(names[0]);
+    const def = std_netif.getDefault().?;
     try std.testing.expect(std.mem.eql(u8, &def, &names[0]));
 
-    netif.StdNetIf.setDns(.{ 9, 9, 9, 9 }, .{ 8, 8, 4, 4 });
-    const dns = netif.StdNetIf.getDns();
+    std_netif.setDns(.{ 9, 9, 9, 9 }, .{ 8, 8, 4, 4 });
+    const dns = std_netif.getDns();
     try std.testing.expectEqual(@as(u8, 9), dns.primary[0]);
     try std.testing.expectEqual(@as(u8, 8), dns.secondary[0]);
 }

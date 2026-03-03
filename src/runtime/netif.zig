@@ -52,28 +52,28 @@ pub const Route = struct {
 };
 
 /// NetIf contract:
-/// - `list() -> []const IfName`
-/// - `get(name: IfName) -> ?Info`
-/// - `getDefault() -> ?IfName`
-/// - `setDefault(name: IfName) -> void`
-/// - `up(name: IfName) -> void`
-/// - `down(name: IfName) -> void`
-/// - `getDns() -> types.DnsServers`
-/// - `setDns(primary: Ipv4Address, secondary: ?Ipv4Address) -> void`
-/// - `addRoute(route: Route) -> void`
-/// - `delRoute(dest: Ipv4Address, mask: Ipv4Address) -> void`
+/// - `list(self) -> []const IfName`
+/// - `get(self, name: IfName) -> ?Info`
+/// - `getDefault(self) -> ?IfName`
+/// - `setDefault(self, name: IfName) -> void`
+/// - `up(self, name: IfName) -> void`
+/// - `down(self, name: IfName) -> void`
+/// - `getDns(self) -> types.DnsServers`
+/// - `setDns(self, primary: Ipv4Address, secondary: ?Ipv4Address) -> void`
+/// - `addRoute(self, route: Route) -> void`
+/// - `delRoute(self, dest: Ipv4Address, mask: Ipv4Address) -> void`
 pub fn from(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn () []const IfName, &Impl.list);
-        _ = @as(*const fn (IfName) ?Info, &Impl.get);
-        _ = @as(*const fn () ?IfName, &Impl.getDefault);
-        _ = @as(*const fn (IfName) void, &Impl.setDefault);
-        _ = @as(*const fn (IfName) void, &Impl.up);
-        _ = @as(*const fn (IfName) void, &Impl.down);
-        _ = @as(*const fn () types.DnsServers, &Impl.getDns);
-        _ = @as(*const fn (Ipv4Address, ?Ipv4Address) void, &Impl.setDns);
-        _ = @as(*const fn (Route) void, &Impl.addRoute);
-        _ = @as(*const fn (Ipv4Address, Ipv4Address) void, &Impl.delRoute);
+        _ = @as(*const fn (Impl) []const IfName, &Impl.list);
+        _ = @as(*const fn (Impl, IfName) ?Info, &Impl.get);
+        _ = @as(*const fn (Impl) ?IfName, &Impl.getDefault);
+        _ = @as(*const fn (Impl, IfName) void, &Impl.setDefault);
+        _ = @as(*const fn (Impl, IfName) void, &Impl.up);
+        _ = @as(*const fn (Impl, IfName) void, &Impl.down);
+        _ = @as(*const fn (Impl) types.DnsServers, &Impl.getDns);
+        _ = @as(*const fn (Impl, Ipv4Address, ?Ipv4Address) void, &Impl.setDns);
+        _ = @as(*const fn (Impl, Route) void, &Impl.addRoute);
+        _ = @as(*const fn (Impl, Ipv4Address, Ipv4Address) void, &Impl.delRoute);
     }
     return Impl;
 }

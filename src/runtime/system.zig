@@ -6,27 +6,8 @@ pub const Error = error{
     QueryFailed,
 };
 
-/// Validate whether `T` satisfies the System contract.
-pub fn is(comptime T: type) bool {
-    const BaseType = switch (@typeInfo(T)) {
-        .pointer => |p| p.child,
-        else => T,
-    };
-
-    switch (@typeInfo(BaseType)) {
-        .@"struct", .@"enum", .@"union", .@"opaque" => {},
-        else => return false,
-    }
-
-    if (!@hasDecl(BaseType, "getCpuCount")) {
-        return false;
-    }
-
-    return @TypeOf(&BaseType.getCpuCount) == *const fn () Error!usize;
-}
-
 /// System contract:
-/// - `getCpuCount() -> Error!usize`
+/// - `getCpuCount(self) -> Error!usize`
 pub fn from(comptime Impl: type) type {
     comptime {
         const BaseType = switch (@typeInfo(Impl)) {
@@ -34,12 +15,7 @@ pub fn from(comptime Impl: type) type {
             else => Impl,
         };
 
-        _ = @as(*const fn () Error!usize, &BaseType.getCpuCount);
+        _ = @as(*const fn (BaseType) Error!usize, &BaseType.getCpuCount);
     }
     return Impl;
-}
-
-test "is returns false when declaration missing" {
-    const Incomplete = struct {};
-    try @import("std").testing.expect(!is(Incomplete));
 }

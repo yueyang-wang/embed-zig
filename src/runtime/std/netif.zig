@@ -21,11 +21,11 @@ pub const StdNetIf = struct {
 
     var shared = Shared{};
 
-    pub fn list() []const runtime.netif.IfName {
+    pub fn list(_: StdNetIf) []const runtime.netif.IfName {
         return loop_if_names[0..];
     }
 
-    pub fn get(name: runtime.netif.IfName) ?runtime.netif.Info {
+    pub fn get(_: StdNetIf, name: runtime.netif.IfName) ?runtime.netif.Info {
         if (!isLoopName(name)) return null;
 
         shared.mutex.lock();
@@ -44,47 +44,47 @@ pub const StdNetIf = struct {
         return info;
     }
 
-    pub fn getDefault() ?runtime.netif.IfName {
+    pub fn getDefault(_: StdNetIf) ?runtime.netif.IfName {
         shared.mutex.lock();
         defer shared.mutex.unlock();
         return shared.default_if;
     }
 
-    pub fn setDefault(name: runtime.netif.IfName) void {
+    pub fn setDefault(_: StdNetIf, name: runtime.netif.IfName) void {
         if (!isLoopName(name)) return;
         shared.mutex.lock();
         defer shared.mutex.unlock();
         shared.default_if = name;
     }
 
-    pub fn up(name: runtime.netif.IfName) void {
+    pub fn up(_: StdNetIf, name: runtime.netif.IfName) void {
         if (!isLoopName(name)) return;
         shared.mutex.lock();
         defer shared.mutex.unlock();
         shared.state = .up;
     }
 
-    pub fn down(name: runtime.netif.IfName) void {
+    pub fn down(_: StdNetIf, name: runtime.netif.IfName) void {
         if (!isLoopName(name)) return;
         shared.mutex.lock();
         defer shared.mutex.unlock();
         shared.state = .down;
     }
 
-    pub fn getDns() runtime.netif.types.DnsServers {
+    pub fn getDns(_: StdNetIf) runtime.netif.types.DnsServers {
         shared.mutex.lock();
         defer shared.mutex.unlock();
         return .{ .primary = shared.dns_main, .secondary = shared.dns_backup };
     }
 
-    pub fn setDns(primary: runtime.netif.Ipv4Address, secondary: ?runtime.netif.Ipv4Address) void {
+    pub fn setDns(_: StdNetIf, primary: runtime.netif.Ipv4Address, secondary: ?runtime.netif.Ipv4Address) void {
         shared.mutex.lock();
         defer shared.mutex.unlock();
         shared.dns_main = primary;
         shared.dns_backup = secondary orelse .{ 0, 0, 0, 0 };
     }
 
-    pub fn addRoute(route: runtime.netif.Route) void {
+    pub fn addRoute(_: StdNetIf, route: runtime.netif.Route) void {
         shared.mutex.lock();
         defer shared.mutex.unlock();
 
@@ -104,7 +104,7 @@ pub const StdNetIf = struct {
         }
     }
 
-    pub fn delRoute(dest: runtime.netif.Ipv4Address, mask: runtime.netif.Ipv4Address) void {
+    pub fn delRoute(_: StdNetIf, dest: runtime.netif.Ipv4Address, mask: runtime.netif.Ipv4Address) void {
         shared.mutex.lock();
         defer shared.mutex.unlock();
 
