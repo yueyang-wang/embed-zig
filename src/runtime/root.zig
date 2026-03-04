@@ -12,3 +12,5 @@ pub const rng = @import("rng.zig");
 pub const netif = @import("netif.zig");
 pub const ota_backend = @import("ota_backend.zig");
 pub const crypto = @import("crypto/root.zig");
+
+pub const std = @import("std/root.zig");
