@@ -1,113 +1,90 @@
-const std = @import("std");
+//! 100-button_led_cycle firmware application.
+//!
+//! Button-driven LED color cycling.
+//!
+//! Behavior:
+//!   - Long press (>=1s) release: toggle off <-> white
+//!   - Single short click: switch to red
+//!   - Double click (within 300ms): switch to green
 
-pub const LedState = struct {
-    on: bool,
-    r: u8,
-    g: u8,
-    b: u8,
-};
+const board_spec = @import("board_spec.zig");
+const Color = @import("embed_zig").hal.led_strip.Color;
 
-pub const InputAction = enum {
-    press_down,
-    release,
-    reset,
-};
+const long_press_ms: u64 = 1000;
+const double_click_window_ms: u64 = 300;
+const poll_interval_ms: u32 = 10;
 
 const Mode = enum {
     off,
     white,
     red,
     green,
-};
 
-pub const Config = struct {
-    long_press_ms: u64 = 1000,
-    double_click_window_ms: u64 = 300,
-};
-
-pub const App = struct {
-    mode: Mode = .off,
-    pressed: bool = false,
-    press_start_t: u64 = 0,
-    pending_short_release_t: ?u64 = null,
-
-    pub fn init() App {
-        return .{};
-    }
-
-    pub fn onInput(self: *App, cfg: Config, now_t: u64, action: InputAction) ?LedState {
-        switch (action) {
-            .reset => {
-                self.mode = .off;
-                self.pressed = false;
-                self.press_start_t = 0;
-                self.pending_short_release_t = null;
-                return modeLed(self.mode);
-            },
-            .press_down => {
-                if (!self.pressed) {
-                    self.pressed = true;
-                    self.press_start_t = now_t;
-                }
-                return null;
-            },
-            .release => {
-                if (!self.pressed) return null;
-
-                self.pressed = false;
-                const press_duration = if (now_t >= self.press_start_t) now_t - self.press_start_t else 0;
-
-                if (press_duration >= cfg.long_press_ms) {
-                    self.pending_short_release_t = null;
-                    self.mode = if (self.mode == .off) .white else .off;
-                    return modeLed(self.mode);
-                }
-
-                if (self.pending_short_release_t) |prev_t| {
-                    if (now_t <= prev_t + cfg.double_click_window_ms) {
-                        self.pending_short_release_t = null;
-                        self.mode = .green;
-                        return modeLed(self.mode);
-                    }
-                }
-
-                self.pending_short_release_t = now_t;
-                self.mode = .red;
-                return modeLed(self.mode);
-            },
-        }
-    }
-
-    fn modeLed(mode: Mode) LedState {
-        return switch (mode) {
-            .off => .{ .on = false, .r = 0, .g = 0, .b = 0 },
-            .white => .{ .on = true, .r = 255, .g = 255, .b = 255 },
-            .red => .{ .on = true, .r = 255, .g = 0, .b = 0 },
-            .green => .{ .on = true, .r = 0, .g = 255, .b = 0 },
+    fn color(self: Mode) Color {
+        return switch (self) {
+            .off => Color.black,
+            .white => Color.white,
+            .red => Color.red,
+            .green => Color.green,
         };
     }
 };
 
-test "app supports long/single/double behavior" {
-    var app = App.init();
-    const cfg = Config{};
+pub fn run(comptime board: type, env: anytype) void {
+    _ = env;
 
-    const reset_led = app.onInput(cfg, 0, .reset) orelse return error.ExpectedResetLed;
-    try std.testing.expect(!reset_led.on);
+    const Board = board_spec.Board(board);
+    const log: Board.log = .{};
+    const time: Board.time = .{};
 
-    _ = app.onInput(cfg, 100, .press_down);
-    const white = app.onInput(cfg, 1200, .release) orelse return error.ExpectedWhite;
-    try std.testing.expect(white.on);
-    try std.testing.expectEqual(@as(u8, 255), white.r);
-    try std.testing.expectEqual(@as(u8, 255), white.g);
+    board.init() catch {
+        log.err("hw init failed");
+        return;
+    };
+    defer board.deinit();
 
-    _ = app.onInput(cfg, 2000, .press_down);
-    const red = app.onInput(cfg, 2060, .release) orelse return error.ExpectedRed;
-    try std.testing.expectEqual(@as(u8, 255), red.r);
-    try std.testing.expectEqual(@as(u8, 0), red.g);
+    log.info("100-button_led_cycle started");
 
-    _ = app.onInput(cfg, 2300, .press_down);
-    const green = app.onInput(cfg, 2360, .release) orelse return error.ExpectedGreen;
-    try std.testing.expectEqual(@as(u8, 0), green.r);
-    try std.testing.expectEqual(@as(u8, 255), green.g);
+    var mode: Mode = .off;
+    var pressed: bool = false;
+    var press_start_ms: u64 = 0;
+    var pending_short_release_ms: ?u64 = null;
+
+    while (true) {
+        const now_ms = time.nowMs();
+        const btn_down = board.readButton();
+
+        if (btn_down and !pressed) {
+            pressed = true;
+            press_start_ms = now_ms;
+        } else if (!btn_down and pressed) {
+            pressed = false;
+            const duration = if (now_ms >= press_start_ms) now_ms - press_start_ms else 0;
+
+            if (duration >= long_press_ms) {
+                pending_short_release_ms = null;
+                mode = if (mode == .off) .white else .off;
+                log.info("long press -> toggle");
+            } else {
+                if (pending_short_release_ms) |prev_ms| {
+                    if (now_ms <= prev_ms + double_click_window_ms) {
+                        pending_short_release_ms = null;
+                        mode = .green;
+                        log.info("double click -> green");
+                    } else {
+                        pending_short_release_ms = now_ms;
+                        mode = .red;
+                        log.info("single click -> red");
+                    }
+                } else {
+                    pending_short_release_ms = now_ms;
+                    mode = .red;
+                    log.info("single click -> red");
+                }
+            }
+            board.setLed(mode.color());
+        }
+
+        time.sleepMs(poll_interval_ms);
+    }
 }

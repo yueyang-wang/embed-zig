@@ -1,0 +1,20 @@
+.{
+    .name = .button_led_cycle_100,
+    .version = "0.1.0",
+    .fingerprint = 0x91e7d3520655b301,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .espz = .{
+            .path = "../../../../esp-zig1",
+        },
+        .embed_zig = .{
+            .path = "../../..",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "board",
+    },
+}
