@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("runtime");
+const runtime = @import("../../../mod.zig").runtime;
 const conn_mod = @import("../conn.zig");
 const common = @import("common.zig");
 const record = @import("record.zig");
@@ -252,7 +252,7 @@ pub fn connect(
 }
 
 test "Config defaults" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const TestConfig = Config(Crypto);
     const config: TestConfig = .{
@@ -305,8 +305,8 @@ const TestMockConn = struct {
 };
 
 test "Client init and deinit" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     const TestClient = Client(TestMockConn, Crypto, Mutex);
@@ -321,8 +321,8 @@ test "Client init and deinit" {
 }
 
 test "Client send before connect returns NotConnected" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -335,8 +335,8 @@ test "Client send before connect returns NotConnected" {
 }
 
 test "Client recv before connect returns NotConnected" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -350,8 +350,8 @@ test "Client recv before connect returns NotConnected" {
 }
 
 test "Client isConnected reflects state" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -370,8 +370,8 @@ test "Client isConnected reflects state" {
 }
 
 test "Client close on not-connected is safe" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -385,8 +385,8 @@ test "Client close on not-connected is safe" {
 }
 
 test "Client getVersion and getCipherSuite defaults" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -400,7 +400,7 @@ test "Client getVersion and getCipherSuite defaults" {
 }
 
 test "Config custom values" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const config: Config(Crypto) = .{
         .allocator = std.testing.allocator,
@@ -418,8 +418,8 @@ test "Config custom values" {
 }
 
 test "Client multiple init/deinit cycles" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
 
@@ -433,8 +433,8 @@ test "Client multiple init/deinit cycles" {
 }
 
 test "Client close sets connected to false" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -513,8 +513,8 @@ const ConcurrentPipeConn = struct {
 };
 
 test "concurrent send does not deadlock" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var pipe = ConcurrentPipeConn{};
     var c = try Client(ConcurrentPipeConn, Crypto, Mutex).init(&pipe, .{
@@ -571,8 +571,8 @@ test "concurrent send does not deadlock" {
 }
 
 test "concurrent recv does not deadlock" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var pipe = ConcurrentPipeConn{};
     var c = try Client(ConcurrentPipeConn, Crypto, Mutex).init(&pipe, .{
@@ -612,8 +612,8 @@ test "concurrent recv does not deadlock" {
 }
 
 test "concurrent send and recv do not deadlock" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var pipe = ConcurrentPipeConn{};
     var c = try Client(ConcurrentPipeConn, Crypto, Mutex).init(&pipe, .{
@@ -662,8 +662,8 @@ test "concurrent send and recv do not deadlock" {
 }
 
 test "concurrent close while send does not deadlock" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var pipe = ConcurrentPipeConn{};
     var c = try Client(ConcurrentPipeConn, Crypto, Mutex).init(&pipe, .{
@@ -710,8 +710,8 @@ test "concurrent close while send does not deadlock" {
 }
 
 test "concurrent close_notify sets received flag" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var c = try Client(TestMockConn, Crypto, Mutex).init(&conn, .{
@@ -733,7 +733,7 @@ test "concurrent close_notify sets received flag" {
 }
 
 test "mutex lock/unlock cycle under contention" {
-    const Mutex = @import("runtime").std.Mutex;
+    const Mutex = runtime.std.Mutex;
 
     var mu = Mutex.init();
     defer mu.deinit();

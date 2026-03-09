@@ -1,11 +1,12 @@
 const std = @import("std");
-const runtime = @import("../root.zig");
+const runtime = @import("../../mod.zig").runtime;
+
+const SpawnConfig = runtime.thread.SpawnConfig;
 
 pub const Thread = struct {
     handle: ?std.Thread = null,
 
-    pub fn spawn(config: runtime.thread.types.SpawnConfig, task: runtime.thread.types.TaskFn, ctx: ?*anyopaque) anyerror!@This() {
-        _ = config.name;
+    pub fn spawn(config: SpawnConfig, task: runtime.thread.types.TaskFn, ctx: ?*anyopaque) anyerror!@This() {
         const handle = try std.Thread.spawn(.{ .stack_size = config.stack_size }, runTask, .{ task, ctx });
         return .{ .handle = handle };
     }

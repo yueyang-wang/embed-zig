@@ -1,4 +1,9 @@
-//! Display HAL wrapper.
+//! Display HAL — SPI LCD panel transport.
+//!
+//! Pure transport layer: no framebuffer, no pixel operations.
+//! The driver initializes the SPI bus + LCD panel and provides
+//! `drawBitmap` to push contiguous pixel data to a screen region.
+//! All buffer management belongs in the application layer.
 
 const std = @import("std");
 const hal_marker = @import("marker.zig");
@@ -31,9 +36,9 @@ pub fn is(comptime T: type) bool {
 /// spec must define:
 /// - Driver.width(*const Driver) u16
 /// - Driver.height(*const Driver) u16
-/// - Driver.drawPixel(*Driver, x: u16, y: u16, color: Color565) Error!void
-/// - Driver.clear(*Driver, color: Color565) Error!void
-/// - Driver.flush(*Driver) Error!void
+/// - Driver.setDisplayEnabled(*Driver, bool) Error!void
+/// - Driver.sleep(*Driver, bool) Error!void
+/// - Driver.drawBitmap(*Driver, x: u16, y: u16, w: u16, h: u16, data: []const Color565) Error!void
 /// - meta.id
 pub fn from(comptime spec: type) type {
     const BaseDriver = comptime switch (@typeInfo(spec.Driver)) {
@@ -44,9 +49,9 @@ pub fn from(comptime spec: type) type {
     comptime {
         _ = @as(*const fn (*const BaseDriver) u16, &BaseDriver.width);
         _ = @as(*const fn (*const BaseDriver) u16, &BaseDriver.height);
-        _ = @as(*const fn (*BaseDriver, u16, u16, Color565) Error!void, &BaseDriver.drawPixel);
-        _ = @as(*const fn (*BaseDriver, Color565) Error!void, &BaseDriver.clear);
-        _ = @as(*const fn (*BaseDriver) Error!void, &BaseDriver.flush);
+        _ = @as(*const fn (*BaseDriver, bool) Error!void, &BaseDriver.setDisplayEnabled);
+        _ = @as(*const fn (*BaseDriver, bool) Error!void, &BaseDriver.sleep);
+        _ = @as(*const fn (*BaseDriver, u16, u16, u16, u16, []const Color565) Error!void, &BaseDriver.drawBitmap);
 
         _ = @as([]const u8, spec.meta.id);
     }
@@ -76,67 +81,112 @@ pub fn from(comptime spec: type) type {
             return self.driver.height();
         }
 
-        pub fn clear(self: *Self, color: Color565) Error!void {
-            return self.driver.clear(color);
+        pub fn setDisplayEnabled(self: *Self, enabled: bool) Error!void {
+            return self.driver.setDisplayEnabled(enabled);
         }
 
-        pub fn drawPixel(self: *Self, x: u16, y: u16, color: Color565) Error!void {
-            if (x >= self.width() or y >= self.height()) return error.OutOfBounds;
-            return self.driver.drawPixel(x, y, color);
+        /// Enter or exit sleep mode (screen off / low power).
+        pub fn sleep(self: *Self, enabled: bool) Error!void {
+            return self.driver.sleep(enabled);
         }
 
-        pub fn fillRect(self: *Self, x: u16, y: u16, w: u16, h: u16, color: Color565) Error!void {
-            const max_x = @min(@as(u32, x) + w, self.width());
-            const max_y = @min(@as(u32, y) + h, self.height());
-
-            var yy: u32 = y;
-            while (yy < max_y) : (yy += 1) {
-                var xx: u32 = x;
-                while (xx < max_x) : (xx += 1) {
-                    try self.driver.drawPixel(@intCast(xx), @intCast(yy), color);
-                }
-            }
-        }
-
-        pub fn flush(self: *Self) Error!void {
-            return self.driver.flush();
+        /// Write a rectangular block of contiguous pixels to the display.
+        /// `data` must contain exactly w * h pixels, tightly packed (no stride).
+        pub fn drawBitmap(self: *Self, x: u16, y: u16, w: u16, h: u16, data: []const Color565) Error!void {
+            if (w == 0 or h == 0) return;
+            if (@as(u32, x) + w > self.width() or @as(u32, y) + h > self.height()) return error.OutOfBounds;
+            if (data.len < @as(usize, w) * @as(usize, h)) return error.OutOfBounds;
+            return self.driver.drawBitmap(x, y, w, h, data);
         }
     };
 }
 
-test "display wrapper" {
-    const Mock = struct {
-        const W: u16 = 8;
-        const H: u16 = 4;
+// ============================================================================
+// Tests
+// ============================================================================
 
-        fb: [W * H]Color565 = [_]Color565{0} ** (W * H),
+const Mock = struct {
+    const W: u16 = 8;
+    const H: u16 = 4;
 
-        pub fn width(_: *const @This()) u16 {
-            return W;
-        }
-        pub fn height(_: *const @This()) u16 {
-            return H;
-        }
-        pub fn drawPixel(self: *@This(), x: u16, y: u16, color: Color565) Error!void {
-            self.fb[y * W + x] = color;
-        }
-        pub fn clear(self: *@This(), color: Color565) Error!void {
-            for (&self.fb) |*px| px.* = color;
-        }
-        pub fn flush(_: *@This()) Error!void {}
-    };
+    fb: [W * H]Color565 = [_]Color565{0} ** (W * H),
+    enabled: bool = false,
+    sleeping: bool = false,
 
-    const Display = from(struct {
-        pub const Driver = Mock;
-        pub const meta = .{ .id = "display.test" };
-    });
+    pub fn width(_: *const @This()) u16 {
+        return W;
+    }
+    pub fn height(_: *const @This()) u16 {
+        return H;
+    }
+    pub fn setDisplayEnabled(self: *@This(), enabled: bool) Error!void {
+        self.enabled = enabled;
+    }
+    pub fn sleep(self: *@This(), enabled: bool) Error!void {
+        self.sleeping = enabled;
+    }
+    pub fn drawBitmap(self: *@This(), x: u16, y: u16, w: u16, h: u16, data: []const Color565) Error!void {
+        var row: u16 = 0;
+        while (row < h) : (row += 1) {
+            var col: u16 = 0;
+            while (col < w) : (col += 1) {
+                const dst = @as(usize, y + row) * W + @as(usize, x + col);
+                const src = @as(usize, row) * w + @as(usize, col);
+                self.fb[dst] = data[src];
+            }
+        }
+    }
+};
 
+const TestDisplay = from(struct {
+    pub const Driver = Mock;
+    pub const meta = .{ .id = "display.test" };
+});
+
+test "display enable and sleep" {
     var d = Mock{};
-    var display = Display.init(&d);
+    var display = TestDisplay.init(&d);
 
-    try display.clear(rgb565(0, 0, 0));
-    try display.drawPixel(1, 1, rgb565(255, 0, 0));
-    try std.testing.expectError(error.OutOfBounds, display.drawPixel(100, 1, 0));
-    try display.fillRect(0, 0, 2, 2, rgb565(0, 255, 0));
-    try std.testing.expect(d.fb[0] != 0);
+    try display.setDisplayEnabled(true);
+    try std.testing.expect(d.enabled);
+
+    try display.setDisplayEnabled(false);
+    try std.testing.expect(!d.enabled);
+
+    try display.sleep(true);
+    try std.testing.expect(d.sleeping);
+
+    try display.sleep(false);
+    try std.testing.expect(!d.sleeping);
+}
+
+test "drawBitmap partial region" {
+    var d = Mock{};
+    var display = TestDisplay.init(&d);
+
+    const pixels = [_]Color565{ 0x1111, 0x2222, 0x3333, 0x4444 };
+    try display.drawBitmap(3, 1, 2, 2, &pixels);
+
+    try std.testing.expectEqual(@as(Color565, 0x1111), d.fb[1 * Mock.W + 3]);
+    try std.testing.expectEqual(@as(Color565, 0x2222), d.fb[1 * Mock.W + 4]);
+    try std.testing.expectEqual(@as(Color565, 0x3333), d.fb[2 * Mock.W + 3]);
+    try std.testing.expectEqual(@as(Color565, 0x4444), d.fb[2 * Mock.W + 4]);
+
+    try std.testing.expectEqual(@as(Color565, 0), d.fb[1 * Mock.W + 2]);
+    try std.testing.expectEqual(@as(Color565, 0), d.fb[1 * Mock.W + 5]);
+    try std.testing.expectEqual(@as(Color565, 0), d.fb[0 * Mock.W + 3]);
+    try std.testing.expectEqual(@as(Color565, 0), d.fb[3 * Mock.W + 3]);
+}
+
+test "drawBitmap zero size is no-op" {
+    var d = Mock{};
+    var display = TestDisplay.init(&d);
+    try display.drawBitmap(0, 0, 0, 0, &[_]Color565{});
+}
+
+test "drawBitmap out of bounds" {
+    var d = Mock{};
+    var display = TestDisplay.init(&d);
+    const pixels = [_]Color565{ 0x1111, 0x2222, 0x3333, 0x4444 };
+    try std.testing.expectError(error.OutOfBounds, display.drawBitmap(7, 3, 2, 2, &pixels));
 }

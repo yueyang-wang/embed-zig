@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("runtime");
+const runtime = @import("../../mod.zig").runtime;
 
 pub const WaitGroupError = error{
     Underflow,

@@ -4,6 +4,8 @@
 //! HTTP, or other protocol layers — regardless of whether the underlying
 //! transport is a TCP socket, a serial port, a memory pipe, etc.
 
+const runtime = @import("../../mod.zig").runtime;
+
 /// Conn contract error set.
 pub const Error = error{
     ReadFailed,
@@ -107,7 +109,6 @@ test "Conn from returns the same type" {
 }
 
 test "SocketConn satisfies Conn contract" {
-    const runtime = @import("runtime");
     const Socket = runtime.std.Socket;
     const Adapted = SocketConn(Socket);
     _ = from(Adapted);
@@ -115,7 +116,6 @@ test "SocketConn satisfies Conn contract" {
 
 test "SocketConn read/write/close over TCP loopback" {
     const std = @import("std");
-    const runtime = @import("runtime");
     const Socket = runtime.std.Socket;
 
     var listener = try Socket.tcp();
@@ -146,7 +146,6 @@ test "SocketConn read/write/close over TCP loopback" {
 
 test "SocketConn maps Closed error" {
     const std = @import("std");
-    const runtime = @import("runtime");
     const Socket = runtime.std.Socket;
 
     var listener = try Socket.tcp();
@@ -171,7 +170,6 @@ test "SocketConn maps Closed error" {
 
 test "SocketConn maps Timeout error" {
     const std = @import("std");
-    const runtime = @import("runtime");
     const Socket = runtime.std.Socket;
 
     var listener = try Socket.tcp();

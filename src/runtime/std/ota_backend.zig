@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("../root.zig");
+const runtime = @import("../../mod.zig").runtime;
 
 pub const OtaBackend = struct {
     file: ?std.fs.File = null,

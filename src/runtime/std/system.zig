@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("../root.zig");
+const runtime = @import("../../mod.zig").runtime;
 
 pub const System = struct {
     pub fn getCpuCount(_: System) runtime.system.Error!usize {

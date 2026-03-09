@@ -7,12 +7,11 @@
 
 const std = @import("std");
 const conn_mod = @import("../conn.zig");
-const ws = @import("root.zig");
-const frame = ws.frame;
-const handshake = ws.handshake;
-
-const runtime = @import("runtime");
-const Socket = runtime.std.Socket;
+const ws_client = @import("client.zig");
+const frame = @import("frame.zig");
+const handshake = @import("handshake.zig");
+const runtime_std = @import("../../../runtime/std.zig");
+const Socket = runtime_std.Socket;
 const SConn = conn_mod.SocketConn(Socket);
 
 fn rngFill(buf: []u8) void {
@@ -121,7 +120,7 @@ fn echoLoop(sock: *Socket) !void {
 
             const remaining = read_len - total_frame;
             if (remaining > 0) {
-                ws.client.copyForward(&read_buf, read_buf[total_frame..read_len]);
+                ws_client.copyForward(&read_buf, read_buf[total_frame..read_len]);
             }
             read_len = remaining;
         }
@@ -296,7 +295,7 @@ test "E1: text echo roundtrip" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -305,12 +304,12 @@ test "E1: text echo roundtrip" {
 
     try client.sendText("hello");
     const msg1 = (try client.recv()) orelse return error.UnexpectedNull;
-    try std.testing.expectEqual(ws.MessageType.text, msg1.type);
+    try std.testing.expectEqual(ws_client.MessageType.text, msg1.type);
     try std.testing.expectEqualSlices(u8, "hello", msg1.payload);
 
     try client.sendText("world");
     const msg2 = (try client.recv()) orelse return error.UnexpectedNull;
-    try std.testing.expectEqual(ws.MessageType.text, msg2.type);
+    try std.testing.expectEqual(ws_client.MessageType.text, msg2.type);
     try std.testing.expectEqualSlices(u8, "world", msg2.payload);
 
     client.close();
@@ -332,7 +331,7 @@ test "E2: binary echo" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -344,7 +343,7 @@ test "E2: binary echo" {
 
     try client.sendBinary(&data);
     const msg = (try client.recv()) orelse return error.UnexpectedNull;
-    try std.testing.expectEqual(ws.MessageType.binary, msg.type);
+    try std.testing.expectEqual(ws_client.MessageType.binary, msg.type);
     try std.testing.expectEqualSlices(u8, &data, msg.payload);
 
     client.close();
@@ -366,7 +365,7 @@ test "E3: ping pong" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -375,7 +374,7 @@ test "E3: ping pong" {
 
     try client.sendPing();
     const msg = (try client.recv()) orelse return error.UnexpectedNull;
-    try std.testing.expectEqual(ws.MessageType.pong, msg.type);
+    try std.testing.expectEqual(ws_client.MessageType.pong, msg.type);
 
     client.close();
 }
@@ -396,7 +395,7 @@ test "E4: 50 consecutive messages" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -408,7 +407,7 @@ test "E4: 50 consecutive messages" {
         const msg_text = formatNum(&buf, i);
         try client.sendText(msg_text);
         const msg = (try client.recv()) orelse return error.UnexpectedNull;
-        try std.testing.expectEqual(ws.MessageType.text, msg.type);
+        try std.testing.expectEqual(ws_client.MessageType.text, msg.type);
         try std.testing.expectEqualSlices(u8, msg_text, msg.payload);
     }
 
@@ -431,7 +430,7 @@ test "E5: server-initiated close" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -441,7 +440,7 @@ test "E5: server-initiated close" {
     try client.sendClose(1000);
 
     const result = try client.recv();
-    try std.testing.expectEqual(@as(?ws.Message, null), result);
+    try std.testing.expectEqual(@as(?ws_client.Message, null), result);
 }
 
 // ==========================================================================
@@ -466,7 +465,7 @@ test "E6: extra headers" {
     };
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/api/v3/realtime",
         .extra_headers = &headers,
@@ -484,7 +483,7 @@ test "E6: extra headers" {
 
     try client.sendText("doubao-test");
     const msg = (try client.recv()) orelse return error.UnexpectedNull;
-    try std.testing.expectEqual(ws.MessageType.text, msg.type);
+    try std.testing.expectEqual(ws_client.MessageType.text, msg.type);
     try std.testing.expectEqualSlices(u8, "doubao-test", msg.payload);
 
     client.close();
@@ -506,7 +505,7 @@ test "BM1: 1000 text messages sequential" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -546,7 +545,7 @@ test "BM2: 500x1KB binary frames" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -561,7 +560,7 @@ test "BM2: 500x1KB binary frames" {
     for (0..500) |_| {
         try client.sendBinary(&data);
         const msg = (try client.recv()) orelse return error.UnexpectedNull;
-        try std.testing.expectEqual(ws.MessageType.binary, msg.type);
+        try std.testing.expectEqual(ws_client.MessageType.binary, msg.type);
         try std.testing.expectEqual(@as(usize, 1024), msg.payload.len);
         try std.testing.expectEqualSlices(u8, &data, msg.payload);
     }
@@ -618,7 +617,7 @@ fn clientWorker(
     sock.connect(.{ 127, 0, 0, 1 }, port) catch return;
 
     var sconn = SConn.init(&sock);
-    var client = ws.Client(SConn).init(allocator, &sconn, .{
+    var client = ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -665,7 +664,7 @@ test "BM4: 64KB binary roundtrip" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,
@@ -681,7 +680,7 @@ test "BM4: 64KB binary roundtrip" {
 
     try client.sendBinary(data);
     const msg = (try client.recv()) orelse return error.UnexpectedNull;
-    try std.testing.expectEqual(ws.MessageType.binary, msg.type);
+    try std.testing.expectEqual(ws_client.MessageType.binary, msg.type);
     try std.testing.expectEqual(@as(usize, 65536), msg.payload.len);
     try std.testing.expectEqualSlices(u8, data, msg.payload);
 
@@ -708,7 +707,7 @@ test "BM5: latency P50/P99" {
     try sock.connect(.{ 127, 0, 0, 1 }, server.port);
 
     var sconn = SConn.init(&sock);
-    var client = try ws.Client(SConn).init(allocator, &sconn, .{
+    var client = try ws_client.Client(SConn).init(allocator, &sconn, .{
         .host = "localhost",
         .path = "/",
         .rng_fill = rngFill,

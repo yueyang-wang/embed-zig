@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("runtime");
+const runtime = @import("../../mod.zig").runtime;
 const cancellation = @import("cancellation.zig");
 
 pub const TaskFn = *const fn (?*anyopaque) anyerror!void;

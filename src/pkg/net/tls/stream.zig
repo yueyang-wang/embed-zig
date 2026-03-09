@@ -1,4 +1,5 @@
 const std = @import("std");
+const runtime = @import("../../../mod.zig").runtime;
 const conn_mod = @import("../conn.zig");
 const client_mod = @import("client.zig");
 const common = @import("common.zig");
@@ -86,8 +87,8 @@ pub fn Stream(comptime Conn: type, comptime Crypto: type, comptime Mutex: type) 
 }
 
 test "Stream satisfies Conn contract" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     const MockConn = struct {
         const Self = @This();
@@ -120,8 +121,8 @@ const TestMockConn = struct {
 };
 
 test "Stream init and deinit" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var s = try Stream(TestMockConn, Crypto, Mutex).init(&conn, std.testing.allocator, "example.com", .{});
@@ -131,8 +132,8 @@ test "Stream init and deinit" {
 }
 
 test "Stream read before handshake returns Closed" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var s = try Stream(TestMockConn, Crypto, Mutex).init(&conn, std.testing.allocator, "example.com", .{});
@@ -143,8 +144,8 @@ test "Stream read before handshake returns Closed" {
 }
 
 test "Stream write before handshake returns Closed" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var s = try Stream(TestMockConn, Crypto, Mutex).init(&conn, std.testing.allocator, "example.com", .{});
@@ -154,8 +155,8 @@ test "Stream write before handshake returns Closed" {
 }
 
 test "Stream close before handshake is safe" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var s = try Stream(TestMockConn, Crypto, Mutex).init(&conn, std.testing.allocator, "example.com", .{});
@@ -166,8 +167,8 @@ test "Stream close before handshake is safe" {
 }
 
 test "Stream deinit is idempotent" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var s = try Stream(TestMockConn, Crypto, Mutex).init(&conn, std.testing.allocator, "example.com", .{});
@@ -192,8 +193,8 @@ test "Stream options custom" {
 }
 
 test "Stream preserves hostname and allocator" {
-    const Crypto = @import("runtime").std.Crypto;
-    const Mutex = @import("runtime").std.Mutex;
+    const Crypto = runtime.std.Crypto;
+    const Mutex = runtime.std.Mutex;
 
     var conn = TestMockConn{};
     var s = try Stream(TestMockConn, Crypto, Mutex).init(&conn, std.testing.allocator, "my.host.com", .{});

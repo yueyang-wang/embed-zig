@@ -1,90 +1,113 @@
-//! 100-button_led_cycle firmware application.
+//! 100-button_led_cycle — Button-driven LED color cycling via AppRuntime.
 //!
-//! Button-driven LED color cycling.
+//! Demonstrates the full flux pipeline:
+//!   event.Bus → gesture middleware → Animator → output
 //!
 //! Behavior:
-//!   - Long press (>=1s) release: toggle off <-> white
-//!   - Single short click: switch to red
-//!   - Double click (within 300ms): switch to green
+//!   - 1 click:  → red (fade)
+//!   - 2 clicks: → green (fade)
+//!   - 3 clicks: → blue (fade)
+//!   - 4 clicks: → white (fade)
+//!   - Long press: → toggle off / white (fade)
 
-const board_spec = @import("board_spec.zig");
-const Color = @import("embed_zig").hal.led_strip.Color;
+const embed = @import("embed");
+const runtime = embed.runtime;
+const event = embed.pkg.event;
+const app_mod = embed.pkg.app;
 
-const long_press_ms: u64 = 1000;
-const double_click_window_ms: u64 = 300;
-const poll_interval_ms: u32 = 10;
+pub const App = @import("state.zig");
 
-const Mode = enum {
-    off,
-    white,
-    red,
-    green,
-
-    fn color(self: Mode) Color {
-        return switch (self) {
-            .off => Color.black,
-            .white => Color.white,
-            .red => Color.red,
-            .green => Color.green,
-        };
-    }
-};
-
-pub fn run(comptime board: type, env: anytype) void {
+pub fn run(comptime hw: type, env: anytype) void {
     _ = env;
 
-    const Board = board_spec.Board(board);
+    const board_spec = @import("board_spec.zig");
+    const Board = board_spec.Board(hw);
+
+    const IO = runtime.io.from(hw.io);
+    const Thread = Board.thread.Type;
+    const Gpio = Board.gpio;
+
+    const ButtonType = event.button.GpioButton(Gpio, Board.time, IO, App.Event, "button");
+    const GestureType = event.button.ButtonGesture(App.Event, "button", Board.time);
+    const EventLog = event.Logger(App.Event, Board.log, "button");
+    const AppRt = app_mod.AppRuntime(App, IO);
+
     const log: Board.log = .{};
     const time: Board.time = .{};
+    const allocator = Board.allocator.system;
 
+    var board: Board = undefined;
     board.init() catch {
-        log.err("hw init failed");
+        log.err("board init failed");
         return;
     };
     defer board.deinit();
 
+    var io = IO.init(allocator) catch {
+        log.err("io init failed");
+        return;
+    };
+    defer io.deinit();
+
+    var btn = ButtonType.init(&board.gpio_dev, &io, time, .{
+        .id = "btn.boot",
+        .pin = hw.button_pin,
+        .active_level = .low,
+    }) catch {
+        log.err("button init failed");
+        return;
+    };
+    defer btn.deinit();
+    btn.bind();
+
+    var gesture = GestureType.init(time, .{
+        .multi_click_window_ms = 300,
+        .long_press_ms = 500,
+    });
+
+    var rt = AppRt.init(allocator, &io, .{
+        .poll_timeout_ms = 50,
+    });
+    defer rt.deinit();
+
+    rt.register(&btn.periph) catch {
+        log.err("register button failed");
+        return;
+    };
+    rt.use(EventLog.middleware("raw"));
+    rt.use(gesture.middleware());
+    rt.use(EventLog.middleware("gesture"));
+    rt.use(.{ .ctx = null, .tickFn = App.tickMiddleware });
+
+    var btn_thread = Thread.spawn(
+        Board.thread.user,
+        ButtonType.runFromCtx,
+        @ptrCast(&btn),
+    ) catch {
+        log.err("button worker start failed");
+        return;
+    };
+    defer {
+        btn.requestStop();
+        btn_thread.join();
+    }
+
     log.info("100-button_led_cycle started");
 
-    var mode: Mode = .off;
-    var pressed: bool = false;
-    var press_start_ms: u64 = 0;
-    var pending_short_release_ms: ?u64 = null;
+    while (Board.isRunning()) {
+        rt.tick();
 
-    while (true) {
-        const now_ms = time.nowMs();
-        const btn_down = board.readButton();
+        if (rt.isDirty()) {
+            const state = rt.getState();
+            const prev = rt.getPrev();
 
-        if (btn_down and !pressed) {
-            pressed = true;
-            press_start_ms = now_ms;
-        } else if (!btn_down and pressed) {
-            pressed = false;
-            const duration = if (now_ms >= press_start_ms) now_ms - press_start_ms else 0;
-
-            if (duration >= long_press_ms) {
-                pending_short_release_ms = null;
-                mode = if (mode == .off) .white else .off;
-                log.info("long press -> toggle");
-            } else {
-                if (pending_short_release_ms) |prev_ms| {
-                    if (now_ms <= prev_ms + double_click_window_ms) {
-                        pending_short_release_ms = null;
-                        mode = .green;
-                        log.info("double click -> green");
-                    } else {
-                        pending_short_release_ms = now_ms;
-                        mode = .red;
-                        log.info("single click -> red");
-                    }
-                } else {
-                    pending_short_release_ms = now_ms;
-                    mode = .red;
-                    log.info("single click -> red");
-                }
+            if (!state.led.current.eql(prev.led.current)) {
+                board.led_strip_dev.setPixels(&state.led.current.pixels);
             }
-            board.setLed(mode.color());
-        }
 
-        time.sleepMs(poll_interval_ms);
+            rt.commitFrame();
+        }
     }
+
+    log.info("100-button_led_cycle stopped");
 }

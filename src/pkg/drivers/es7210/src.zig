@@ -18,6 +18,7 @@
 //!   try adc.setGain(.@"30dB");
 
 const std = @import("std");
+const i2c = @import("../../../mod.zig").hal.i2c;
 const es7210 = @This();
 
 /// ES7210 I2C address (7-bit, depends on AD1/AD0 pins)
@@ -318,7 +319,9 @@ pub const Config = struct {
 /// Generic over I2C bus type for platform independence.
 /// `I2cBus` must provide `write(addr: u7, data: []const u8) !void`
 /// and `writeRead(addr: u7, data: []const u8, out: []u8) !void`.
-pub fn Es7210(comptime I2cBus: type) type {
+pub fn Es7210(comptime I2cSpec: type) type {
+    const I2c = i2c.from(I2cSpec);
+
     return struct {
         const Self = @This();
 
@@ -329,17 +332,17 @@ pub fn Es7210(comptime I2cBus: type) type {
         pub const channel_count: u8 = 4;
         pub const max_gain_db: i8 = 37;
 
-        i2c: I2cBus,
+        bus: I2c,
         config: Config,
         is_open: bool = false,
         enabled: bool = false,
         gain: Self.Gain = .@"30dB",
         clock_off_reg: u8 = 0,
 
-        /// Initialize driver with I2C bus and configuration
-        pub fn init(i2c: I2cBus, config: Config) Self {
+        /// Initialize driver with I2C driver and configuration
+        pub fn init(driver: *I2c.DriverType, config: Config) Self {
             return .{
-                .i2c = i2c,
+                .bus = I2c.init(driver),
                 .config = config,
             };
         }
@@ -347,13 +350,13 @@ pub fn Es7210(comptime I2cBus: type) type {
         /// Read a register value
         pub fn readRegister(self: *Self, reg: Register) !u8 {
             var buf: [1]u8 = undefined;
-            try self.i2c.writeRead(self.config.address, &.{@intFromEnum(reg)}, &buf);
+            try self.bus.writeRead(self.config.address, &.{@intFromEnum(reg)}, &buf);
             return buf[0];
         }
 
         /// Write a register value
         pub fn writeRegister(self: *Self, reg: Register, value: u8) !void {
-            try self.i2c.write(self.config.address, &.{ @intFromEnum(reg), value });
+            try self.bus.write(self.config.address, &.{ @intFromEnum(reg), value });
         }
 
         /// Update specific bits in a register
@@ -707,9 +710,14 @@ const MockI2c = struct {
     }
 };
 
+const MockI2cSpec = struct {
+    pub const Driver = MockI2c;
+    pub const meta = .{ .id = "test.i2c" };
+};
+
 test "Es7210 basic operations" {
     var mock = MockI2c{};
-    var adc = Es7210(*MockI2c).init(&mock, .{
+    var adc = Es7210(MockI2cSpec).init(&mock, .{
         .mic_select = .{ .mic1 = true, .mic2 = true, .mic3 = true },
     });
 

@@ -10,8 +10,7 @@ const io = @import("io.zig");
 const socket = @import("socket.zig");
 const netif = @import("netif.zig");
 const ota_backend = @import("ota_backend.zig");
-const runtime = @import("../root.zig");
-const root = @import("root.zig");
+const runtime = @import("../../mod.zig").runtime;
 
 const std_time: time.Time = .{};
 const std_rng: rng.Rng = .{};

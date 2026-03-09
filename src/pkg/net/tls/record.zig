@@ -1,4 +1,5 @@
 const std = @import("std");
+const runtime = @import("../../../mod.zig").runtime;
 const common = @import("common.zig");
 
 const ContentType = common.ContentType;
@@ -450,7 +451,6 @@ test "RecordHeader parse and serialize" {
 }
 
 test "CipherState initialization" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key_128: [16]u8 = [_]u8{0} ** 16;
@@ -461,7 +461,6 @@ test "CipherState initialization" {
 }
 
 test "AES-128-GCM encrypt/decrypt round trip" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0x01} ** 16;
@@ -482,7 +481,6 @@ test "AES-128-GCM encrypt/decrypt round trip" {
 }
 
 test "ChaCha20-Poly1305 encrypt/decrypt round trip" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [32]u8 = [_]u8{0x05} ** 32;
@@ -503,7 +501,6 @@ test "ChaCha20-Poly1305 encrypt/decrypt round trip" {
 }
 
 test "Decryption with wrong sequence number fails" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0x07} ** 16;
@@ -526,7 +523,6 @@ test "Decryption with wrong sequence number fails" {
 }
 
 test "CipherState unsupported cipher suite" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0} ** 16;
@@ -538,7 +534,6 @@ test "CipherState unsupported cipher suite" {
 }
 
 test "AES-256-GCM encrypt/decrypt round trip" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [32]u8 = [_]u8{0xAB} ** 32;
@@ -558,7 +553,6 @@ test "AES-256-GCM encrypt/decrypt round trip" {
 }
 
 test "CipherState init all supported suites" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key16: [16]u8 = [_]u8{0} ** 16;
@@ -597,7 +591,6 @@ test "CipherState init all supported suites" {
 }
 
 test "AesGcmState invalid key length" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const bad_key: [15]u8 = [_]u8{0} ** 15;
@@ -606,7 +599,6 @@ test "AesGcmState invalid key length" {
 }
 
 test "AesGcmState invalid IV length" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0} ** 16;
@@ -615,7 +607,6 @@ test "AesGcmState invalid IV length" {
 }
 
 test "ChaChaState invalid key length" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const bad_key: [16]u8 = [_]u8{0} ** 16;
@@ -624,7 +615,6 @@ test "ChaChaState invalid key length" {
 }
 
 test "ChaChaState invalid IV length" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [32]u8 = [_]u8{0} ** 32;
@@ -633,7 +623,6 @@ test "ChaChaState invalid IV length" {
 }
 
 test "AES-128-GCM TLS 1.2 explicit nonce encrypt/decrypt" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0x11} ** 16;
@@ -655,7 +644,6 @@ test "AES-128-GCM TLS 1.2 explicit nonce encrypt/decrypt" {
 }
 
 test "ChaCha20 TLS 1.2 explicit nonce encrypt/decrypt" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [32]u8 = [_]u8{0x33} ** 32;
@@ -677,7 +665,6 @@ test "ChaCha20 TLS 1.2 explicit nonce encrypt/decrypt" {
 }
 
 test "Decryption with tampered ciphertext fails" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0xAA} ** 16;
@@ -698,7 +685,6 @@ test "Decryption with tampered ciphertext fails" {
 }
 
 test "Decryption with tampered tag fails" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [32]u8 = [_]u8{0xCC} ** 32;
@@ -719,7 +705,6 @@ test "Decryption with tampered tag fails" {
 }
 
 test "Decryption with wrong additional data fails" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0xEE} ** 16;
@@ -737,7 +722,6 @@ test "Decryption with wrong additional data fails" {
 }
 
 test "Nonce computation XORs sequence number correctly" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const key: [16]u8 = [_]u8{0} ** 16;
@@ -843,7 +827,6 @@ const MockConn = struct {
 };
 
 test "RecordLayer plaintext write and read round trip" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -866,7 +849,6 @@ test "RecordLayer plaintext write and read round trip" {
 }
 
 test "RecordLayer encrypted TLS 1.3 write and read round trip" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -897,7 +879,6 @@ test "RecordLayer encrypted TLS 1.3 write and read round trip" {
 }
 
 test "RecordLayer encrypted TLS 1.2 write and read round trip" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -928,7 +909,6 @@ test "RecordLayer encrypted TLS 1.2 write and read round trip" {
 }
 
 test "RecordLayer rejects record too large" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -941,7 +921,6 @@ test "RecordLayer rejects record too large" {
 }
 
 test "RecordLayer sendAlert" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -963,7 +942,6 @@ test "RecordLayer sendAlert" {
 }
 
 test "RecordLayer change_cipher_spec passthrough" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -985,7 +963,6 @@ test "RecordLayer change_cipher_spec passthrough" {
 }
 
 test "RecordLayer sequence numbers increment" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};
@@ -1009,7 +986,6 @@ test "RecordLayer sequence numbers increment" {
 }
 
 test "RecordLayer setWriteCipher resets sequence" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var mock = MockConn{};

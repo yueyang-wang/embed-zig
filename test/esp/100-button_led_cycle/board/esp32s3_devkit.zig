@@ -1,14 +1,24 @@
+const std = @import("std");
 const modules = @import("sdkconfig_modules");
 const partition = @import("idf_partition");
-const rom = @import("esp_rom");
-const freertos = @import("freertos");
-const esp_timer = @import("esp_timer");
-const esp_gpio = @import("esp_driver_gpio");
-const esp_led = @import("led_strip");
-const Color = @import("embed_zig").hal.led_strip.Color;
+const esp = @import("esp");
+const heap = @import("heap");
+const hal = @import("embed/hal");
+const runtime = @import("embed/runtime");
+const runtime_esp = @import("runtime_esp");
+const hal_esp = @import("hal_esp");
+
+// ============================================================================
+// SDKconfig
+// ============================================================================
 
 pub const config = .{
-    .core = modules.esp_system_config.default,
+    .core = modules.esp_system_config.withDefaultConfig(.{
+        .main_task_stack_size = 16384,
+    }),
+    .esp_misc = modules.esp_misc_config.withDefaultConfig(.{
+        .esp_main_task_stack_size = 16384,
+    }),
     .freertos = modules.freertos_config.default,
     .app_metadata = modules.app_metadata_config.default,
     .app_trace = modules.app_trace_config.default,
@@ -42,12 +52,15 @@ pub const config = .{
     .esp_https_server = modules.esp_https_server_config.default,
     .esp_hw_support = modules.esp_hw_support_config.default,
     .esp_lcd = modules.esp_lcd_config.default,
-    .esp_misc = modules.esp_misc_config.default,
     .esp_mm = modules.esp_mm_config.default,
     .esp_netif = modules.esp_netif_config.default,
     .esp_phy = modules.esp_phy_config.default,
     .esp_pm = modules.esp_pm_config.default,
-    .esp_psram = modules.esp_psram_config.default,
+    .esp_psram = modules.esp_psram_config.withDefaultConfig(.{
+        .spiram = true,
+        .spiram_mode_oct = true,
+        .spiram_speed_80m = true,
+    }),
     .esp_security = modules.esp_security_config.default,
     .esp_timer = modules.esp_timer_config.default,
     .esp_wifi = modules.esp_wifi_config.default,
@@ -69,7 +82,9 @@ pub const config = .{
     .soc = modules.soc_config.default,
     .spi_flash = modules.spi_flash_config.default,
     .spiffs = modules.spiffs_config.default,
-    .target_soc = modules.target_soc_config.default,
+    .target_soc = modules.target_soc_config.withDefaultConfig(.{
+        .esp32s3_spiram_support = true,
+    }),
     .tcp_transport = modules.tcp_transport_config.default,
     .toolchain = modules.toolchain_config.default,
     .ulp = modules.ulp_config.default,
@@ -88,65 +103,92 @@ pub const config = .{
     .partition_table = partition.default_table,
 };
 
-const tick_rate_hz: u32 = 100;
-const btn_pin: i32 = 0;
-const led_gpio: i32 = 48;
+// ============================================================================
+// Board-specific hardware parameters
+// ============================================================================
+
+const btn_pin: u8 = 0;
+const led_gpio_num: i32 = 48;
 const led_count: u32 = 1;
 
-var strip: ?esp_led.LedStrip = null;
-
-fn printMsg(prefix: [*:0]const u8, msg: []const u8) void {
-    rom.printf("%s", .{prefix});
-    for (msg) |c| rom.printf("%c", .{c});
-    rom.printf("\n", .{});
-}
+// ============================================================================
+// hw — the contract that firmware app.zig consumes
+// ============================================================================
 
 pub const hw = struct {
     pub const name: []const u8 = "esp32s3_devkit";
+    pub const button_pin: u8 = btn_pin;
 
-    pub const log = struct {
-        pub fn debug(_: @This(), msg: []const u8) void { printMsg("[D] ", msg); }
-        pub fn info(_: @This(), msg: []const u8) void { printMsg("[I] ", msg); }
-        pub fn warn(_: @This(), msg: []const u8) void { printMsg("[W] ", msg); }
-        pub fn err(_: @This(), msg: []const u8) void { printMsg("[E] ", msg); }
+    pub const allocator = struct {
+        pub const user = heap.psram;
+        pub const system = heap.dram;
+        pub const default = heap.default;
     };
 
-    pub const time = struct {
-        pub fn nowMs(_: @This()) u64 { return esp_timer.getTimeMs(); }
-        pub fn sleepMs(_: @This(), ms: u32) void { freertos.delay(ms * tick_rate_hz / 1000); }
+    pub const thread = struct {
+        pub const Thread = runtime_esp.Thread;
+        pub const user_defaults: runtime.thread.SpawnConfig = .{
+            .allocator = heap.psram,
+            .priority = 3,
+            .name = "user",
+            .core_id = 0,
+        };
+        pub const system_defaults: runtime.thread.SpawnConfig = .{
+            .allocator = heap.dram,
+            .priority = 5,
+            .name = "sys",
+        };
+        pub const default_defaults: runtime.thread.SpawnConfig = .{
+            .allocator = heap.default,
+            .priority = 5,
+            .name = "zig-task",
+        };
     };
 
-    pub fn init() !void {
-        esp_gpio.gpio.setDirection(btn_pin, .input) catch return error.InitFailed;
-        esp_gpio.gpio.setPullMode(btn_pin, .pullup_only) catch return error.InitFailed;
+    pub const log = runtime_esp.Log;
+    pub const time = runtime_esp.Time;
+    pub const io = runtime_esp.IO;
 
-        strip = esp_led.LedStrip.initRmt(.{
-            .gpio_num = led_gpio,
-            .max_leds = led_count,
-        }, .{}) catch return error.InitFailed;
+    pub const rtc_spec = struct {
+        pub const Driver = hal_esp.RtcReader.DriverType;
+        pub const meta = .{ .id = "rtc.esp32s3" };
+    };
 
-        if (strip) |s| {
-            s.clear() catch {};
-            s.refresh() catch {};
-        }
-    }
+    pub const gpio_spec = struct {
+        pub const Driver = hal_esp.Gpio.DriverType;
+        pub const meta = .{ .id = "gpio.esp32s3" };
+    };
 
-    pub fn deinit() void {
-        if (strip) |s| {
-            s.clear() catch {};
-            s.refresh() catch {};
-            s.deinit() catch {};
-        }
-        strip = null;
-    }
+    pub const led_strip_spec = struct {
+        pub const Driver = struct {
+            inner: hal_esp.LedStrip.DriverType,
 
-    pub fn readButton() bool {
-        return esp_gpio.gpio.getLevel(btn_pin) == 0;
-    }
+            const Self = @This();
 
-    pub fn setLed(color: Color) void {
-        const s = strip orelse return;
-        s.setPixel(0, color.r, color.g, color.b) catch {};
-        s.refresh() catch {};
-    }
+            pub fn init() !Self {
+                return .{
+                    .inner = try hal_esp.LedStrip.DriverType.initRmt(led_gpio_num, led_count),
+                };
+            }
+
+            pub fn deinit(self: *Self) void {
+                self.inner.deinit();
+            }
+
+            pub fn setPixel(self: *Self, index: u32, color: @import("embed/hal").led_strip.Color) void {
+                self.inner.setPixel(index, color);
+            }
+
+            pub fn getPixelCount(self: *Self) u32 {
+                return self.inner.getPixelCount();
+            }
+
+            pub fn refresh(self: *Self) void {
+                self.inner.refresh();
+            }
+        };
+        pub const meta = .{
+            .id = "led_strip.esp32s3_rmt",
+        };
+    };
 };

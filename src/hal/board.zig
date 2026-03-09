@@ -157,6 +157,7 @@ pub fn Board(comptime spec: type) type {
     const DisplayType = findPeripheralType(spec, .display);
     const MicType = findPeripheralType(spec, .mic);
     const SpeakerType = findPeripheralType(spec, .speaker);
+    const AudioSystemType = findPeripheralType(spec, .audio_system);
     const TempSensorType = findPeripheralType(spec, .temp_sensor);
     const ImuType = findPeripheralType(spec, .imu);
     const GpioType = findPeripheralType(spec, .gpio);
@@ -177,6 +178,7 @@ pub fn Board(comptime spec: type) type {
         validatePeripheralType(DisplayType, .display);
         validatePeripheralType(MicType, .mic);
         validatePeripheralType(SpeakerType, .speaker);
+        validatePeripheralType(AudioSystemType, .audio_system);
         validatePeripheralType(TempSensorType, .temp_sensor);
         validatePeripheralType(ImuType, .imu);
         validatePeripheralType(GpioType, .gpio);
@@ -197,6 +199,7 @@ pub fn Board(comptime spec: type) type {
     const DisplayDriverType = driverTypeOf(DisplayType);
     const MicDriverType = driverTypeOf(MicType);
     const SpeakerDriverType = driverTypeOf(SpeakerType);
+    const AudioSystemDriverType = driverTypeOf(AudioSystemType);
     const TempSensorDriverType = driverTypeOf(TempSensorType);
     const ImuDriverType = driverTypeOf(ImuType);
     const GpioDriverType = driverTypeOf(GpioType);
@@ -215,6 +218,7 @@ pub fn Board(comptime spec: type) type {
     const HasDisplay = DisplayType != void;
     const HasMic = MicType != void;
     const HasSpeaker = SpeakerType != void;
+    const HasAudioSystem = AudioSystemType != void;
     const HasTempSensor = TempSensorType != void;
     const HasImu = ImuType != void;
     const HasGpio = GpioType != void;
@@ -239,6 +243,9 @@ pub fn Board(comptime spec: type) type {
 
         pub const log = if (@hasDecl(spec, "log")) spec.log else void;
         pub const time = if (@hasDecl(spec, "time")) spec.time else void;
+        pub const thread = if (@hasDecl(spec, "thread")) spec.thread else void;
+        pub const allocator = if (@hasDecl(spec, "allocator")) spec.allocator else void;
+        pub const fs = if (@hasDecl(spec, "fs")) spec.fs else void;
         pub const isRunning = if (@hasDecl(spec, "isRunning"))
             spec.isRunning
         else
@@ -254,6 +261,7 @@ pub fn Board(comptime spec: type) type {
         pub const display = DisplayType;
         pub const mic = MicType;
         pub const speaker = SpeakerType;
+        pub const audio_system = AudioSystemType;
         pub const temp_sensor = TempSensorType;
         pub const imu = ImuType;
         pub const gpio = GpioType;
@@ -290,6 +298,10 @@ pub fn Board(comptime spec: type) type {
         speaker_driver: if (HasSpeaker) SpeakerDriverType else void,
         speaker_dev: if (HasSpeaker) SpeakerType else void,
         init_speaker: bool = false,
+
+        audio_system_driver: if (HasAudioSystem) AudioSystemDriverType else void,
+        audio_system_dev: if (HasAudioSystem) AudioSystemType else void,
+        init_audio_system: bool = false,
 
         temp_sensor_driver: if (HasTempSensor) TempSensorDriverType else void,
         temp_sensor_dev: if (HasTempSensor) TempSensorType else void,
@@ -346,6 +358,7 @@ pub fn Board(comptime spec: type) type {
             self.init_display = false;
             self.init_mic = false;
             self.init_speaker = false;
+            self.init_audio_system = false;
             self.init_temp_sensor = false;
             self.init_imu = false;
             self.init_gpio = false;
@@ -393,6 +406,12 @@ pub fn Board(comptime spec: type) type {
                 self.speaker_driver = try driverInit(SpeakerDriverType);
                 self.speaker_dev = SpeakerType.init(&self.speaker_driver);
                 self.init_speaker = true;
+            }
+
+            if (HasAudioSystem) {
+                self.audio_system_driver = try driverInit(AudioSystemDriverType);
+                self.audio_system_dev = AudioSystemType.init(&self.audio_system_driver);
+                self.init_audio_system = true;
             }
 
             if (HasTempSensor) {
@@ -516,6 +535,10 @@ pub fn Board(comptime spec: type) type {
             if (HasTempSensor and self.init_temp_sensor) {
                 driverDeinit(TempSensorDriverType, &self.temp_sensor_driver);
                 self.init_temp_sensor = false;
+            }
+            if (HasAudioSystem and self.init_audio_system) {
+                driverDeinit(AudioSystemDriverType, &self.audio_system_driver);
+                self.init_audio_system = false;
             }
             if (HasSpeaker and self.init_speaker) {
                 driverDeinit(SpeakerDriverType, &self.speaker_driver);

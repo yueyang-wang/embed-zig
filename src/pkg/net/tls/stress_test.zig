@@ -1,4 +1,5 @@
 const std = @import("std");
+const runtime_std = @import("../../../runtime/std.zig");
 const conn_mod = @import("../conn.zig");
 const record = @import("record.zig");
 const common = @import("common.zig");
@@ -70,8 +71,7 @@ fn createTcpPair() !TcpPair {
 // Run with: zig build test-net -- --test-filter "stress"
 // ---------------------------------------------------------------------------
 test "stress: RecordLayer over TCP loopback" {
-    const runtime = @import("runtime");
-    const Crypto = runtime.std.Crypto;
+    const Crypto = runtime_std.Crypto;
 
     var pair = try createTcpPair();
     defer {
@@ -121,8 +121,7 @@ test "stress: RecordLayer over TCP loopback" {
 }
 
 test "stress: concurrent TCP record layer writers" {
-    const runtime = @import("runtime");
-    const Crypto = runtime.std.Crypto;
+    const Crypto = runtime_std.Crypto;
 
     var pair = try createTcpPair();
     defer {
@@ -180,8 +179,7 @@ test "stress: concurrent TCP record layer writers" {
 }
 
 test "stress: multiple TCP pairs simultaneous" {
-    const runtime = @import("runtime");
-    const Crypto = runtime.std.Crypto;
+    const Crypto = runtime_std.Crypto;
 
     const pair_count = 4;
     const msgs_per_pair = 20;
@@ -254,8 +252,7 @@ test "stress: multiple TCP pairs simultaneous" {
 }
 
 test "stress: TCP loopback TLS 1.2 encrypted records" {
-    const runtime = @import("runtime");
-    const Crypto = runtime.std.Crypto;
+    const Crypto = runtime_std.Crypto;
 
     var pair = try createTcpPair();
     defer {
@@ -304,8 +301,7 @@ test "stress: TCP loopback TLS 1.2 encrypted records" {
 }
 
 test "stress: TCP loopback ChaCha20-Poly1305" {
-    const runtime = @import("runtime");
-    const Crypto = runtime.std.Crypto;
+    const Crypto = runtime_std.Crypto;
 
     var pair = try createTcpPair();
     defer {
@@ -354,8 +350,7 @@ test "stress: TCP loopback ChaCha20-Poly1305" {
 }
 
 test "stress: large payload over TCP" {
-    const runtime = @import("runtime");
-    const Crypto = runtime.std.Crypto;
+    const Crypto = runtime_std.Crypto;
 
     var pair = try createTcpPair();
     defer {

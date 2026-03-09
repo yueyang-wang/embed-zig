@@ -21,9 +21,9 @@
 //!   const ip = try resolver.resolve("www.google.com");
 
 const std = @import("std");
-const runtime = @import("runtime");
+const runtime = @import("../../../mod.zig").runtime;
 const conn_mod = @import("../conn.zig");
-const tls = @import("../tls/root.zig");
+const tls = @import("../../../mod.zig").pkg.net.tls;
 
 pub const Ipv4Address = [4]u8;
 
@@ -670,25 +670,41 @@ test "validateDomainResolver: valid resolver" {
 }
 
 const TestMockSocket = struct {
-    pub fn udp() runtime.socket.Error!@This() { return .{}; }
-    pub fn tcp() runtime.socket.Error!@This() { return .{}; }
+    pub fn udp() runtime.socket.Error!@This() {
+        return .{};
+    }
+    pub fn tcp() runtime.socket.Error!@This() {
+        return .{};
+    }
     pub fn close(_: *@This()) void {}
     pub fn connect(_: *@This(), _: [4]u8, _: u16) runtime.socket.Error!void {}
-    pub fn send(_: *@This(), _: []const u8) runtime.socket.Error!usize { return 0; }
-    pub fn recv(_: *@This(), _: []u8) runtime.socket.Error!usize { return 0; }
-    pub fn sendTo(_: *@This(), _: [4]u8, _: u16, _: []const u8) runtime.socket.Error!usize { return 0; }
+    pub fn send(_: *@This(), _: []const u8) runtime.socket.Error!usize {
+        return 0;
+    }
+    pub fn recv(_: *@This(), _: []u8) runtime.socket.Error!usize {
+        return 0;
+    }
+    pub fn sendTo(_: *@This(), _: [4]u8, _: u16, _: []const u8) runtime.socket.Error!usize {
+        return 0;
+    }
     pub fn recvFrom(_: *@This(), _: []u8) runtime.socket.Error!runtime.socket.RecvFromResult {
         return .{ .len = 0, .src_addr = .{ 0, 0, 0, 0 }, .src_port = 0 };
     }
     pub fn setRecvTimeout(_: *@This(), _: u32) void {}
     pub fn setSendTimeout(_: *@This(), _: u32) void {}
     pub fn setTcpNoDelay(_: *@This(), _: bool) void {}
-    pub fn getFd(_: *@This()) i32 { return 0; }
+    pub fn getFd(_: *@This()) i32 {
+        return 0;
+    }
     pub fn setNonBlocking(_: *@This(), _: bool) runtime.socket.Error!void {}
     pub fn bind(_: *@This(), _: [4]u8, _: u16) runtime.socket.Error!void {}
-    pub fn getBoundPort(_: *@This()) runtime.socket.Error!u16 { return 0; }
+    pub fn getBoundPort(_: *@This()) runtime.socket.Error!u16 {
+        return 0;
+    }
     pub fn listen(_: *@This()) runtime.socket.Error!void {}
-    pub fn accept(_: *@This()) runtime.socket.Error!@This() { return .{}; }
+    pub fn accept(_: *@This()) runtime.socket.Error!@This() {
+        return .{};
+    }
 };
 
 test "Resolver with void DomainResolver: custom_resolver is void (zero overhead)" {

@@ -11,9 +11,9 @@
 //!   - log:  scoped logger (comptime fmt)
 //!   - time: struct { nowMs, sleepMs }
 
-const embed_zig = @import("embed_zig");
-const hal = embed_zig.hal;
-const runtime = embed_zig.runtime;
+const embed = @import("esp").embed;
+const hal = embed.hal;
+const runtime = embed.runtime;
 
 pub fn Board(comptime hw: type) type {
     const spec = struct {

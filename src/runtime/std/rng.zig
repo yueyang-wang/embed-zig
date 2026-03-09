@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("../root.zig");
+const runtime = @import("../../mod.zig").runtime;
 
 pub const Rng = struct {
     pub fn fill(_: Rng, buf: []u8) runtime.rng.Error!void {

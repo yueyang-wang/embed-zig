@@ -1,5 +1,5 @@
 const std = @import("std");
-const runtime = @import("runtime");
+const runtime = @import("../../mod.zig").runtime;
 
 /// Bounded channel with ring buffer storage.
 /// Uses explicit `Mutex` and `Condition` primitives for thread-safe blocking

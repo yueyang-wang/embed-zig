@@ -1,4 +1,5 @@
 const std = @import("std");
+const runtime = @import("../../../mod.zig").runtime;
 
 /// HKDF-Expand-Label for TLS 1.3 (RFC 8446 Section 7.1).
 pub fn hkdfExpandLabel(
@@ -32,7 +33,7 @@ pub fn hkdfExpandLabel(
 }
 
 test "hkdfExpandLabel basic" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x01} ** 32;
     const result = hkdfExpandLabel(Crypto.HkdfSha256, secret, "key", "", 16);
@@ -40,7 +41,7 @@ test "hkdfExpandLabel basic" {
 }
 
 test "hkdfExpandLabel with context" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x02} ** 32;
     const context: [32]u8 = [_]u8{0x03} ** 32;
@@ -49,7 +50,7 @@ test "hkdfExpandLabel with context" {
 }
 
 test "hkdfExpandLabel different lengths" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x04} ** 32;
 
@@ -64,7 +65,7 @@ test "hkdfExpandLabel different lengths" {
 }
 
 test "hkdfExpandLabel deterministic" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x05} ** 32;
     const r1 = hkdfExpandLabel(Crypto.HkdfSha256, secret, "key", "", 16);
@@ -73,7 +74,7 @@ test "hkdfExpandLabel deterministic" {
 }
 
 test "hkdfExpandLabel different labels produce different output" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x06} ** 32;
     const r1 = hkdfExpandLabel(Crypto.HkdfSha256, secret, "key", "", 32);
@@ -82,7 +83,7 @@ test "hkdfExpandLabel different labels produce different output" {
 }
 
 test "hkdfExpandLabel different secrets produce different output" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret1: [32]u8 = [_]u8{0x07} ** 32;
     const secret2: [32]u8 = [_]u8{0x08} ** 32;
@@ -92,7 +93,7 @@ test "hkdfExpandLabel different secrets produce different output" {
 }
 
 test "hkdfExpandLabel different contexts produce different output" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x09} ** 32;
     const ctx1: [16]u8 = [_]u8{0x0A} ** 16;
@@ -103,7 +104,7 @@ test "hkdfExpandLabel different contexts produce different output" {
 }
 
 test "hkdfExpandLabel TLS 1.3 standard labels" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x10} ** 32;
     const hash: [32]u8 = [_]u8{0x20} ** 32;
@@ -119,7 +120,7 @@ test "hkdfExpandLabel TLS 1.3 standard labels" {
 }
 
 test "hkdfExpandLabel output is not all zeros" {
-    const Crypto = @import("runtime").std.Crypto;
+    const Crypto = runtime.std.Crypto;
 
     const secret: [32]u8 = [_]u8{0x30} ** 32;
     const result = hkdfExpandLabel(Crypto.HkdfSha256, secret, "derived", "", 32);

@@ -18,7 +18,7 @@
 //!   try codec.setMicGain(.@"24dB");
 
 const std = @import("std");
-const i2c = @import("hal").i2c;
+const i2c = @import("../../../mod.zig").hal.i2c;
 
 /// ES8311 I2C address (7-bit, depends on AD0 pin)
 pub const Address = enum(u7) {
@@ -231,7 +231,7 @@ pub const MicGain = enum(u8) {
 pub const I2sFormat = enum(u2) {
     i2s = 0b00,
     left_justified = 0b01,
-    dsp_a = 0b11,
+    dsp_a = 0b10,
     dsp_b = 0b11,
 };
 

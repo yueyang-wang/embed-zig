@@ -265,7 +265,7 @@ test "Connection: close terminates" {
 // Real TCP loopback concurrency tests
 // =========================================================================
 
-const runtime = @import("runtime");
+const runtime = @import("../../../mod.zig").runtime;
 const Socket = runtime.std.Socket;
 
 const SocketConn = struct {

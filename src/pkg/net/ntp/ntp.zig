@@ -28,7 +28,7 @@
 //!   const resp = try client.query(nonce);
 
 const std = @import("std");
-const runtime = @import("runtime");
+const runtime = @import("../../../mod.zig").runtime;
 
 pub const Ipv4Address = [4]u8;
 
@@ -700,7 +700,10 @@ test "buildRequest with non-zero origin has transmit timestamp" {
     buildRequest(&buf, 1706012096000);
     var has_nonzero = false;
     for (buf[40..48]) |b| {
-        if (b != 0) { has_nonzero = true; break; }
+        if (b != 0) {
+            has_nonzero = true;
+            break;
+        }
     }
     try std.testing.expect(has_nonzero);
 }

@@ -1,5 +1,6 @@
 const std = @import("std");
-const runtime = @import("../root.zig");
+const runtime = @import("../../mod.zig").runtime;
+const Channel = runtime.io.Channel;
 
 pub const IO = struct {
     pub const ReadyCallback = runtime.io.ReadyCallback;
@@ -106,6 +107,35 @@ pub const IO = struct {
             error.WouldBlock => {},
             else => {},
         };
+    }
+
+    pub fn createChannel(_: *@This()) anyerror!Channel {
+        const pipe_fds = try std.posix.pipe();
+        errdefer {
+            std.posix.close(pipe_fds[0]);
+            std.posix.close(pipe_fds[1]);
+        }
+        try setNonBlocking(pipe_fds[0]);
+        try setNonBlocking(pipe_fds[1]);
+        return .{ .read_fd = pipe_fds[0], .write_fd = pipe_fds[1] };
+    }
+
+    pub fn readChannel(_: *@This(), fd: std.posix.fd_t, buf: []u8) anyerror!usize {
+        return std.posix.read(fd, buf) catch |err| switch (err) {
+            error.WouldBlock => return @as(usize, 0),
+            else => return err,
+        };
+    }
+
+    pub fn writeChannel(_: *@This(), fd: std.posix.fd_t, data: []const u8) anyerror!usize {
+        return std.posix.write(fd, data) catch |err| switch (err) {
+            error.WouldBlock => return @as(usize, 0),
+            else => return err,
+        };
+    }
+
+    pub fn closeChannel(_: *@This(), fd: std.posix.fd_t) void {
+        std.posix.close(fd);
     }
 
     fn drainWake(self: *@This()) void {

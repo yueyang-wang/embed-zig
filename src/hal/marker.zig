@@ -19,6 +19,7 @@ pub const Kind = enum {
     hci,
     kvs,
     rtc,
+    audio_system,
     board,
 };
 

@@ -33,10 +33,16 @@ test "run with mock hw" {
 
         pub const rtc_spec = struct {
             pub const Driver = struct {
-                pub fn init() !@This() { return .{}; }
+                pub fn init() !@This() {
+                    return .{};
+                }
                 pub fn deinit(_: *@This()) void {}
-                pub fn uptime(_: *@This()) u64 { return 0; }
-                pub fn nowMs(_: *@This()) ?i64 { return null; }
+                pub fn uptime(_: *@This()) u64 {
+                    return 0;
+                }
+                pub fn nowMs(_: *@This()) ?i64 {
+                    return null;
+                }
             };
             pub const meta = .{ .id = "rtc.mock" };
         };
@@ -49,7 +55,9 @@ test "run with mock hw" {
         };
 
         pub const time = struct {
-            pub fn nowMs(_: @This()) u64 { return 0; }
+            pub fn nowMs(_: @This()) u64 {
+                return 0;
+            }
             pub fn sleepMs(_: @This(), _: u32) void {}
         };
     };

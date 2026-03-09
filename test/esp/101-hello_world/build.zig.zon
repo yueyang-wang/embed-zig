@@ -4,11 +4,8 @@
     .fingerprint = 0xad1df3efb94622c9,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
-        .espz = .{
+        .esp = .{
             .path = "../../../../esp-zig1",
-        },
-        .embed_zig = .{
-            .path = "../../..",
         },
     },
     .paths = .{

@@ -1,4 +1,5 @@
 const std = @import("std");
+const runtime = @import("../../../mod.zig").runtime;
 const common = @import("common.zig");
 const extensions = @import("extensions.zig");
 const record = @import("record.zig");
@@ -1188,7 +1189,6 @@ test "HandshakeHeader parse and serialize" {
 }
 
 test "TranscriptHash" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var hash = TranscriptHash(Crypto).init();
@@ -1202,7 +1202,6 @@ test "TranscriptHash" {
 }
 
 test "TLS 1.2 PRF basic" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const secret = "secret";
@@ -1222,7 +1221,6 @@ test "TLS 1.2 PRF basic" {
 }
 
 test "TLS 1.2 PRF output length" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     const secret = "secret";
@@ -1239,7 +1237,6 @@ test "TLS 1.2 PRF output length" {
 }
 
 test "ClientHandshake init with Conn" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
     const conn_mod = @import("../conn.zig");
 
@@ -1305,7 +1302,6 @@ test "HandshakeHeader max length" {
 }
 
 test "TranscriptHash final differs from peek after more updates" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var hash = TranscriptHash(Crypto).init();
@@ -1319,7 +1315,6 @@ test "TranscriptHash final differs from peek after more updates" {
 }
 
 test "TranscriptHash empty input" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var hash = TranscriptHash(Crypto).init();
@@ -1331,7 +1326,6 @@ test "TranscriptHash empty input" {
 }
 
 test "TLS 1.2 PRF different labels produce different output" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var out1: [32]u8 = undefined;
@@ -1344,7 +1338,6 @@ test "TLS 1.2 PRF different labels produce different output" {
 }
 
 test "TLS 1.2 PRF different seeds produce different output" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var out1: [32]u8 = undefined;
@@ -1357,7 +1350,6 @@ test "TLS 1.2 PRF different seeds produce different output" {
 }
 
 test "TLS 1.2 PRF large output" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var out: [104]u8 = undefined;
@@ -1368,7 +1360,6 @@ test "TLS 1.2 PRF large output" {
 }
 
 test "KeyExchange X25519 generate and public key" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var kx = try KeyExchange(Crypto).generate(.x25519, &Crypto.Rng.fill);
@@ -1380,7 +1371,6 @@ test "KeyExchange X25519 generate and public key" {
 }
 
 test "KeyExchange unsupported group" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     try std.testing.expectError(
@@ -1390,7 +1380,6 @@ test "KeyExchange unsupported group" {
 }
 
 test "X25519 shared secret computation" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var kx_a = try KeyExchange(Crypto).generate(.x25519, &Crypto.Rng.fill);
@@ -1403,7 +1392,6 @@ test "X25519 shared secret computation" {
 }
 
 test "X25519 invalid public key length" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
 
     var kx = try KeyExchange(Crypto).generate(.x25519, &Crypto.Rng.fill);
@@ -1412,7 +1400,6 @@ test "X25519 invalid public key length" {
 }
 
 test "ClientHandshake init fills client_random" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
     const conn_mod = @import("../conn.zig");
 
@@ -1435,7 +1422,6 @@ test "ClientHandshake init fills client_random" {
 }
 
 test "ClientHandshake initial state" {
-    const runtime = @import("runtime");
     const Crypto = runtime.std.Crypto;
     const conn_mod = @import("../conn.zig");
 
