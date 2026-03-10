@@ -1,4 +1,4 @@
-const board = @import("board");
+const board_hw = @import("board_hw");
 const test_firmware = @import("test_firmware");
 
 const rom_printf = struct {
@@ -15,5 +15,5 @@ pub fn panic(msg: []const u8, _: ?*@import("std").builtin.StackTrace, _: ?usize)
 }
 
 export fn zig_esp_main() callconv(.c) void {
-    test_firmware.@"100-button_led_cycle".run(board.hw, .{});
+    test_firmware.@"100-button_led_cycle".run(board_hw.hw, .{});
 }

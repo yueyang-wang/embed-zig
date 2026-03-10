@@ -60,7 +60,11 @@ pub const config = .{
     .esp_timer = modules.esp_timer_config.Config.default,
     .esp_wifi = modules.esp_wifi_config.Config.default,
     .espcoredump = modules.espcoredump_config.Config.default,
-    .esptool_py = modules.esptool_py_config.Config.default,
+    .esptool_py = modules.esptool_py_config.Config.withDefaultConfig(.{
+        .esptoolpy_flashsize = "16MB",
+        .esptoolpy_flashsize_16mb = true,
+        .esptoolpy_flashsize_2mb = false,
+    }),
     .fatfs = modules.fatfs_config.Config.default,
     .hal = modules.hal_config.Config.default,
     .heap = modules.heap_config.Config.default,

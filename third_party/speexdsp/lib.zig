@@ -64,7 +64,7 @@ pub fn addTo(
         .command = &.{
             "/bin/sh",
             "-c",
-            "mkdir -p \"$TP_SOURCE_ROOT/include/speex\"; cp -f 'third_party/speexdsp/config_types.h' \"$TP_SOURCE_ROOT/include/speex/speexdsp_config_types.h\"",
+            "mkdir -p \"$TP_SOURCE_ROOT/include/speex\"; cp -f \"$TP_BUILD_ROOT/third_party/speexdsp/config_types.h\" \"$TP_SOURCE_ROOT/include/speex/speexdsp_config_types.h\"",
         },
     });
 }

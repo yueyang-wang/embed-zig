@@ -93,6 +93,7 @@ pub fn addStaticLibraryModule(
     var ensure_step = repo.ensure_step;
     if (config.command.len != 0) {
         const command = b.addSystemCommand(config.command);
+        command.setEnvironmentVariable("TP_BUILD_ROOT", b.pathFromRoot("."));
         command.setEnvironmentVariable("TP_SOURCE_ROOT", repo.source_root_path);
         command.setEnvironmentVariable("TP_PREFIX_ROOT", repo.prefix_path);
         command.step.dependOn(ensure_step);

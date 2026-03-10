@@ -43,7 +43,7 @@ pub fn addTo(
         .command = &.{
             "/bin/sh",
             "-c",
-            "mkdir -p \"$TP_SOURCE_ROOT/include/ogg\"; cp -f 'third_party/ogg/config_types.h' \"$TP_SOURCE_ROOT/include/ogg/config_types.h\"",
+            "mkdir -p \"$TP_SOURCE_ROOT/include/ogg\"; cp -f \"$TP_BUILD_ROOT/third_party/ogg/config_types.h\" \"$TP_SOURCE_ROOT/include/ogg/config_types.h\"",
         },
     });
 }

@@ -4,16 +4,15 @@
     .fingerprint = 0x46cb6ddacb390864,
     .minimum_zig_version = "0.15.2",
     .dependencies = .{
-        .espz = .{
+        .esp = .{
             .path = "../../../../esp-zig1",
-        },
-        .embed_zig = .{
-            .path = "../../..",
         },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
+        "build_config.zig",
+        "bsp.zig",
         "src",
         "board",
     },

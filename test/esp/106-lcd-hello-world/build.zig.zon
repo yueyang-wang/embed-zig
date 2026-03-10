@@ -11,6 +11,8 @@
     .paths = .{
         "build.zig",
         "build.zig.zon",
+        "build_config.zig",
+        "bsp.zig",
         "src",
         "board",
     },
