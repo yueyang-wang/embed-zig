@@ -1,6 +1,6 @@
 //! Runtime Time Contract
 
-pub const Seal = struct {};
+const Seal = struct {};
 
 /// Construct a Time wrapper from an Impl type.
 /// Impl must provide:
@@ -23,11 +23,11 @@ pub fn Time(comptime Impl: type) type {
             impl.sleepMs(ms);
         }
     };
-    return from(TimeType);
+    return is(TimeType);
 }
 
 /// Validate that Impl satisfies the Time contract and return it.
-pub fn from(comptime Impl: type) type {
+pub fn is(comptime Impl: type) type {
     comptime {
         if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
             @compileError("Impl must have pub const seal: time.Seal — use time.Time(Backend) to construct");

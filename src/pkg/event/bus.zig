@@ -288,7 +288,7 @@ pub fn Bus(
 
         /// Synchronization channel: tick() signals completion to stop().
         tick_ch: DoneChannel,
-        
+
         /// Allocator for internal resources.
         allocator: std.mem.Allocator,
 
@@ -379,7 +379,7 @@ pub fn Bus(
         /// `time` must satisfy the runtime time contract (nowMs, sleepMs).
         /// Returns when stop() is called.
         pub fn tick(self: *Self, time: anytype, interval_ms: u32) void {
-            _ = time_mod.from(@TypeOf(time));
+            _ = time_mod.is(@TypeOf(time));
             self.ticking.store(true, .release);
             defer {
                 self.ticking.store(false, .release);

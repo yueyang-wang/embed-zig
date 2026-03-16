@@ -12,7 +12,7 @@ pub const SpawnConfig = struct {
     allocator: ?std.mem.Allocator = null,
 };
 
-pub const Seal = struct {};
+const Seal = struct {};
 
 /// Construct a Thread wrapper from an Impl type.
 /// Impl must provide:
@@ -45,11 +45,11 @@ pub fn Thread(comptime Impl: type) type {
             self.impl.detach();
         }
     };
-    return from(ThreadType);
+    return is(ThreadType);
 }
 
 /// Validate that Impl satisfies the Thread contract and return it.
-pub fn from(comptime Impl: type) type {
+pub fn is(comptime Impl: type) type {
     comptime {
         if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
             @compileError("Impl must have pub const seal: thread.Seal — use thread.Thread(Backend) to construct");

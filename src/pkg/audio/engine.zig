@@ -96,16 +96,16 @@ pub const Processor = struct {
 // Engine
 // ---------------------------------------------------------------------------
 
-pub fn Engine(comptime MutexImpl: type, comptime CondImpl: type, comptime ThreadImpl: type, comptime TimeImpl: type) type {
-    comptime _ = runtime.sync.Mutex(MutexImpl);
-    comptime _ = runtime.sync.ConditionWithMutex(CondImpl, MutexImpl);
-    comptime _ = runtime.thread.from(ThreadImpl);
-    comptime _ = runtime.time.from(TimeImpl);
+pub fn Engine(comptime Mutex: type, comptime Cond: type, comptime Thread: type, comptime Time: type) type {
+    comptime _ = runtime.sync.isMutex(Mutex);
+    comptime _ = runtime.sync.isCondition(Cond);
+    comptime _ = runtime.thread.is(Thread);
+    comptime _ = runtime.time.is(Time);
 
-    const MixerType = mixer_mod.Mixer(MutexImpl, CondImpl);
-    const InputBuf = obuf_mod.OverrideBuffer(InputFrame, MutexImpl, CondImpl);
-    const OutputBuf = obuf_mod.OverrideBuffer(i16, MutexImpl, CondImpl);
-    const SpeakerBuf = obuf_mod.OverrideBuffer(i16, MutexImpl, CondImpl);
+    const MixerType = mixer_mod.Mixer(Mutex, Cond);
+    const InputBuf = obuf_mod.OverrideBuffer(InputFrame, Mutex, Cond);
+    const OutputBuf = obuf_mod.OverrideBuffer(i16, Mutex, Cond);
+    const SpeakerBuf = obuf_mod.OverrideBuffer(i16, Mutex, Cond);
 
     return struct {
         const Self = @This();
@@ -134,8 +134,8 @@ pub fn Engine(comptime MutexImpl: type, comptime CondImpl: type, comptime Thread
         allocator: Allocator,
         config: Config,
         state: std.atomic.Value(u32),
-        mutex: MutexImpl,
-        time: TimeImpl,
+        mutex: Mutex,
+        time: Time,
 
         beamformer: ?Beamformer,
         processor: ?Processor,
@@ -150,12 +150,12 @@ pub fn Engine(comptime MutexImpl: type, comptime CondImpl: type, comptime Thread
         output_storage: []i16,
         speaker_storage: []i16,
 
-        capture_thread: ?ThreadImpl,
-        speaker_thread: ?ThreadImpl,
+        capture_thread: ?Thread,
+        speaker_thread: ?Thread,
 
         // -- lifecycle -------------------------------------------------------
 
-        pub fn init(allocator: Allocator, config: Config, mutex: MutexImpl, time: TimeImpl) !Self {
+        pub fn init(allocator: Allocator, config: Config, mutex: Mutex, time: Time) !Self {
             const input_storage = try allocator.alloc(InputFrame, config.input_queue_frames);
             errdefer allocator.free(input_storage);
 
@@ -175,7 +175,7 @@ pub fn Engine(comptime MutexImpl: type, comptime CondImpl: type, comptime Thread
                 .processor = null,
                 .mixer = MixerType.init(allocator, .{
                     .output = .{ .rate = config.sample_rate, .channels = .mono },
-                }, MutexImpl.init()),
+                }, Mutex.init()),
                 .input_queue = InputBuf.init(input_storage),
                 .output_queue = OutputBuf.init(output_storage),
                 .speaker_ring = SpeakerBuf.init(speaker_storage),
@@ -228,13 +228,13 @@ pub fn Engine(comptime MutexImpl: type, comptime CondImpl: type, comptime Thread
 
             self.state.store(@intFromEnum(State.running), .release);
 
-            self.capture_thread = try ThreadImpl.spawn(
+            self.capture_thread = try Thread.spawn(
                 .{ .name = "engine.capture", .stack_size = 64 * 1024 },
                 captureTaskEntry,
                 @ptrCast(self),
             );
 
-            self.speaker_thread = try ThreadImpl.spawn(
+            self.speaker_thread = try Thread.spawn(
                 .{ .name = "engine.speaker" },
                 speakerTaskEntry,
                 @ptrCast(self),

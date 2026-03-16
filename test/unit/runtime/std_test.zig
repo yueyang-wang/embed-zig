@@ -31,7 +31,6 @@ const std_crypto_rsa = module.std_crypto_rsa;
 const std_crypto_kex = module.std_crypto_kex;
 const std_crypto_x509 = module.std_crypto_x509;
 
-
 const time_mod = embed.runtime.time;
 const log_mod = embed.runtime.log;
 const rng_mod = embed.runtime.rng;
@@ -44,13 +43,13 @@ const ota_backend_mod = embed.runtime.ota_backend;
 const crypto_mod = embed.runtime.crypto.suite;
 
 test "std implementations satisfy all runtime contracts" {
-    _ = time_mod.from(Time);
+    _ = time_mod.is(Time);
     _ = log_mod.from(Log);
     _ = rng_mod.from(Rng);
-    _ = sync_mod.Mutex(Mutex);
-    _ = sync_mod.ConditionWithMutex(Condition, Mutex);
-    _ = sync_mod.Notify(Notify);
-    _ = thread_mod.from(Thread);
+    _ = sync_mod.isMutex(Mutex);
+    _ = sync_mod.isCondition(Condition);
+    _ = sync_mod.isNotify(Notify);
+    _ = thread_mod.is(Thread);
     _ = system_mod.from(System);
     _ = socket_mod.from(Socket);
     _ = fs_mod.from(Fs);

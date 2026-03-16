@@ -42,7 +42,7 @@ pub fn Config(comptime Crypto: type) type {
 pub fn Client(comptime Conn: type, comptime Crypto: type, comptime Rng: type, comptime Mutex: type) type {
     comptime {
         _ = conn_mod.from(Conn);
-        _ = runtime.sync.Mutex(Mutex);
+        _ = runtime.sync.isMutex(Mutex);
     }
 
     return struct {

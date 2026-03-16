@@ -16,11 +16,11 @@ pub const runtime = struct {
 
 pub fn OverrideBuffer(
     comptime T: type,
-    comptime MutexImpl: type,
-    comptime ConditionImpl: type,
+    comptime Mutex: type,
+    comptime Cond: type,
 ) type {
-    comptime _ = runtime.sync.Mutex(MutexImpl);
-    comptime _ = runtime.sync.ConditionWithMutex(ConditionImpl, MutexImpl);
+    comptime _ = runtime.sync.isMutex(Mutex);
+    comptime _ = runtime.sync.isCondition(Cond);
 
     return struct {
         const Self = @This();
@@ -32,16 +32,16 @@ pub fn OverrideBuffer(
         read_pos: usize = 0,
         len: usize = 0,
 
-        mutex: MutexImpl,
-        cond: ConditionImpl,
+        mutex: Mutex,
+        cond: Cond,
         closed: bool = false,
 
         pub fn init(buf: []T) Self {
             return .{
                 .buf = buf,
                 .capacity = buf.len,
-                .mutex = MutexImpl.init(),
-                .cond = ConditionImpl.init(),
+                .mutex = Mutex.init(),
+                .cond = Cond.init(),
             };
         }
 

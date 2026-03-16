@@ -174,9 +174,9 @@ pub fn Host(
     comptime service_table: []const gatt_server.ServiceDef,
 ) type {
     comptime {
-        _ = runtime.sync.Mutex(Mutex);
-        _ = runtime.sync.ConditionWithMutex(Cond, Mutex);
-        _ = runtime.thread.from(Thread);
+        _ = runtime.sync.isMutex(Mutex);
+        _ = runtime.sync.isCondition(Cond);
+        _ = runtime.thread.is(Thread);
     }
 
     const Credits = AclCredits(Mutex, Cond);
