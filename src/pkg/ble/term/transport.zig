@@ -7,10 +7,10 @@
 //! Parameterized on Runtime for portability (std vs ESP).
 
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
+const embed = @import("../../../mod.zig");
 
 pub fn GattTransport(comptime Runtime: type) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     return struct {
         const Self = @This();
@@ -116,66 +116,3 @@ pub fn GattTransport(comptime Runtime: type) type {
         }
     };
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-const builtin = @import("builtin");
-
-pub const TestMutex = if (builtin.os.tag == .freestanding) void else struct {
-    raw: std.Thread.Mutex = .{},
-    pub fn init() @This() {
-        return .{};
-    }
-    pub fn deinit(_: *@This()) void {}
-    pub fn lock(self: *@This()) void {
-        self.raw.lock();
-    }
-    pub fn unlock(self: *@This()) void {
-        self.raw.unlock();
-    }
-};
-
-const condition_mod = @import("../../../runtime/sync/condition.zig");
-
-pub const TestCond = if (builtin.os.tag == .freestanding) void else struct {
-    raw: std.Thread.Condition = .{},
-    pub fn init() @This() {
-        return .{};
-    }
-    pub fn deinit(_: *@This()) void {}
-    pub fn wait(self: *@This(), mutex: *TestMutex) void {
-        self.raw.wait(&mutex.raw);
-    }
-    pub fn signal(self: *@This()) void {
-        self.raw.signal();
-    }
-    pub fn broadcast(self: *@This()) void {
-        self.raw.broadcast();
-    }
-    pub fn timedWait(self: *@This(), mutex: *TestMutex, timeout_ns: u64) condition_mod.TimedWaitResult {
-        self.raw.timedWait(&mutex.raw, timeout_ns) catch return .timed_out;
-        return .signaled;
-    }
-};
-
-pub fn testNotify(_: ?*anyopaque, _: []const u8) anyerror!void {}
-
-/// Test runtime using TestMutex/TestCond for GattTransport unit tests.
-/// Only available when not freestanding (requires std.Thread).
-pub const TestRuntime = if (builtin.os.tag == .freestanding) void else runtime_suite.Make(struct {
-    pub const Time = @import("../../../runtime/std/time.zig").Time;
-    pub const Log = @import("../../../runtime/std/log.zig").Log;
-    pub const Rng = @import("../../../runtime/std/rng.zig").Rng;
-    pub const Mutex = TestMutex;
-    pub const Condition = TestCond;
-    pub const Notify = @import("../../../runtime/std/sync/notify.zig").Notify;
-    pub const Thread = @import("../../../runtime/std/thread.zig").Thread;
-    pub const System = @import("../../../runtime/std/system.zig").System;
-    pub const Fs = @import("../../../runtime/std/fs.zig").Fs;
-    pub const ChannelFactory = @import("../../../runtime/std/channel_factory.zig").ChannelFactory;
-    pub const Socket = @import("../../../runtime/std/socket.zig").Socket;
-    pub const OtaBackend = @import("../../../runtime/std/ota_backend.zig").OtaBackend;
-    pub const Crypto = @import("../../../runtime/std/crypto/suite.zig");
-});

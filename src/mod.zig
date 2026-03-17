@@ -4,21 +4,39 @@ pub const runtime = struct {
     pub const std = @import("runtime/std.zig").Std;
 
     pub const socket = struct {
+        pub const Make = @import("runtime/socket.zig").Make;
+        pub const Error = @import("runtime/socket.zig").Error;
         pub const Ipv4Address = @import("runtime/socket.zig").Ipv4Address;
         pub const parseIpv4 = @import("runtime/socket.zig").parseIpv4;
         pub const RecvFromResult = @import("runtime/socket.zig").RecvFromResult;
     };
 
-    pub const thread = struct {
-        pub const SpawnConfig = @import("runtime/thread.zig").SpawnConfig;
+    pub const rng = struct {
+        pub const Error = @import("runtime/rng.zig").Error;
     };
 
-    pub const crypto = struct {
-        pub const HashType = @import("runtime/crypto/rsa.zig").HashType;
-        pub const DerKey = @import("runtime/crypto/rsa.zig").DerKey;
+    pub const thread = struct {
+        pub const SpawnConfig = @import("runtime/thread.zig").SpawnConfig;
+        pub const TaskFn = @import("runtime/thread.zig").TaskFn;
+    };
+
+    pub const system = struct {
+        pub const Error = @import("runtime/system.zig").Error;
+    };
+
+    pub const fs = struct {
+        pub const OpenMode = @import("runtime/fs.zig").OpenMode;
+        pub const Error = @import("runtime/fs.zig").Error;
+        pub const File = @import("runtime/fs.zig").File;
+    };
+
+    pub const channel_factory = struct {
+        pub const RecvResult = @import("runtime/channel_factory.zig").RecvResult;
+        pub const SendResult = @import("runtime/channel_factory.zig").SendResult;
     };
 
     pub const ota_backend = struct {
+        pub const Error = @import("runtime/ota_backend.zig").Error;
         pub const State = @import("runtime/ota_backend.zig").State;
     };
 
@@ -26,10 +44,12 @@ pub const runtime = struct {
         pub const TimedWaitResult = @import("runtime/sync/condition.zig").TimedWaitResult;
     };
 
-    pub const fs = struct {
-        pub const File = @import("runtime/fs.zig").File;
-        pub const OpenMode = @import("runtime/fs.zig").OpenMode;
-        pub const Error = @import("runtime/fs.zig").Error;
+    pub const crypto = struct {
+        pub const rsa = @import("runtime/crypto/rsa.zig");
+        pub const x25519 = @import("runtime/crypto/x25519.zig");
+        pub const x509 = @import("runtime/crypto/x509.zig");
+        pub const HashType = rsa.HashType;
+        pub const DerKey = rsa.DerKey;
     };
 
     pub const test_runners = struct {
@@ -103,8 +123,35 @@ pub const pkg = struct {
             };
         };
 
-        pub const xfer = @import("pkg/ble/xfer/api.zig");
-        pub const term = @import("pkg/ble/term/api.zig");
+        pub const xfer = struct {
+            const api = @import("pkg/ble/xfer/api.zig");
+            pub const chunk = @import("pkg/ble/xfer/chunk.zig");
+            pub const read_x = @import("pkg/ble/xfer/read_x.zig");
+            pub const write_x = @import("pkg/ble/xfer/write_x.zig");
+            pub const ReadX = api.ReadX;
+            pub const WriteX = api.WriteX;
+            pub const Header = chunk.Header;
+            pub const Bitmask = chunk.Bitmask;
+            pub const start_magic = chunk.start_magic;
+            pub const ack_signal = chunk.ack_signal;
+            pub const dataChunkSize = chunk.dataChunkSize;
+            pub const chunksNeeded = chunk.chunksNeeded;
+        };
+        pub const term = struct {
+            const api = @import("pkg/ble/term/api.zig");
+            pub const shell = @import("pkg/ble/term/shell.zig");
+            pub const transport = @import("pkg/ble/term/transport.zig");
+            pub const Shell = shell.Shell;
+            pub const HandlerFn = shell.HandlerFn;
+            pub const Request = shell.Request;
+            pub const ResponseWriter = shell.ResponseWriter;
+            pub const CancellationToken = shell.CancellationToken;
+            pub const ParsedCommand = shell.ParsedCommand;
+            pub const parseRequest = shell.parseRequest;
+            pub const encodeResponse = shell.encodeResponse;
+            pub const GattTransport = transport.GattTransport;
+            pub const Server = api.Server;
+        };
 
         pub const hci = host.hci;
         pub const att = host.att;
@@ -159,17 +206,13 @@ pub const pkg = struct {
         };
 
         pub const motion = struct {
-            pub const motion = @import("pkg/event/motion/motion.zig");
             pub const detector = @import("pkg/event/motion/detector.zig");
-            pub const types = @import("pkg/event/motion/types.zig");
+            pub const motion_types = @import("pkg/event/motion/types.zig");
             pub const peripheral = @import("pkg/event/motion/peripheral.zig");
-            const motion_mod = @import("pkg/event/motion/motion.zig");
-            const detector_mod = @import("pkg/event/motion/detector.zig");
-            const peripheral_mod = @import("pkg/event/motion/peripheral.zig");
 
-            pub const MotionAction = motion_mod.MotionAction;
-            pub const Detector = detector_mod.Detector;
-            pub const MotionPeripheral = peripheral_mod.MotionPeripheral;
+            pub const MotionAction = motion_types.MotionAction;
+            pub const Detector = detector.Detector;
+            pub const MotionPeripheral = peripheral.MotionPeripheral;
         };
     };
 

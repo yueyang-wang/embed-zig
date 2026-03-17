@@ -11,16 +11,13 @@
 //! from a dedicated thread/task; call `requestStop()` to exit the loop.
 
 const std = @import("std");
-const hal = struct {
-    pub const adc = @import("../../../../hal/adc.zig");
-};
-const bus_mod = @import("../../bus.zig");
-const button_event = @import("../event.zig");
-const runtime_suite = @import("../../../../runtime/runtime.zig");
+const embed = @import("../../../../mod.zig");
+const bus_mod = embed.pkg.event.bus;
+const button_event = embed.pkg.event.button.events;
 
-pub const Event = button_event.RawEvent;
-pub const Code = button_event.RawEventCode;
-pub const Injector = bus_mod.EventInjector(Event);
+const Event = button_event.RawEvent;
+const Code = button_event.RawEventCode;
+const Injector = bus_mod.EventInjector(Event);
 
 pub const Range = struct {
     id: []const u8,
@@ -42,8 +39,8 @@ pub fn AdcButtonSet(
     comptime Runtime: type,
 ) type {
     comptime {
-        _ = runtime_suite.is(Runtime);
-        if (!hal.adc.is(Adc)) @compileError("Adc must be a hal.adc type");
+        _ = embed.runtime.is(Runtime);
+        if (!embed.hal.adc.is(Adc)) @compileError("Adc must be a hal.adc type");
     }
 
     return struct {

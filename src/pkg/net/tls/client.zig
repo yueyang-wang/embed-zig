@@ -1,16 +1,14 @@
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-pub const conn_mod = @import("../conn.zig");
-pub const runtime = struct {
-    pub const std = @import("../../../runtime/std.zig");
-};
-pub const common = @import("common.zig");
-pub const record = @import("record.zig");
-pub const handshake = @import("handshake.zig");
+const embed = @import("../../../mod.zig");
+const runtime_suite = embed.runtime;
+const conn_mod = embed.pkg.net.conn;
+const common = @import("common.zig");
+const record = @import("record.zig");
+const handshake = @import("handshake.zig");
 
-pub const ProtocolVersion = common.ProtocolVersion;
-pub const CipherSuite = common.CipherSuite;
-pub const AlertDescription = common.AlertDescription;
+const ProtocolVersion = common.ProtocolVersion;
+const CipherSuite = common.CipherSuite;
+const AlertDescription = common.AlertDescription;
 
 pub const Config = struct {
     allocator: std.mem.Allocator,
@@ -238,100 +236,3 @@ pub fn connect(
     try tls_client.connect();
     return tls_client;
 }
-
-pub const TestMockConn = struct {
-    write_buf: [16384]u8 = undefined,
-    write_len: usize = 0,
-    read_buf: [16384]u8 = undefined,
-    read_len: usize = 0,
-    read_pos: usize = 0,
-    closed: bool = false,
-
-    pub fn read(self: *TestMockConn, buf: []u8) conn_mod.Error!usize {
-        if (self.closed) return conn_mod.Error.Closed;
-        if (self.read_pos >= self.read_len) return conn_mod.Error.ReadFailed;
-        const avail = self.read_len - self.read_pos;
-        const n = @min(avail, buf.len);
-        @memcpy(buf[0..n], self.read_buf[self.read_pos..][0..n]);
-        self.read_pos += n;
-        return n;
-    }
-
-    pub fn write(self: *TestMockConn, data: []const u8) conn_mod.Error!usize {
-        if (self.closed) return conn_mod.Error.Closed;
-        const space = self.write_buf.len - self.write_len;
-        const n = @min(space, data.len);
-        if (n == 0) return conn_mod.Error.WriteFailed;
-        @memcpy(self.write_buf[self.write_len..][0..n], data[0..n]);
-        self.write_len += n;
-        return n;
-    }
-
-    pub fn close(self: *TestMockConn) void {
-        self.closed = true;
-    }
-
-    fn feedData(self: *TestMockConn, data: []const u8) void {
-        @memcpy(self.read_buf[0..data.len], data);
-        self.read_len = data.len;
-        self.read_pos = 0;
-    }
-};
-
-pub const ConcurrentPipeConn = struct {
-    mu: std.Thread.Mutex = .{},
-    cond: std.Thread.Condition = .{},
-    buf: [65536]u8 = undefined,
-    len: usize = 0,
-    pos: usize = 0,
-    closed: bool = false,
-
-    pub fn read(self: *ConcurrentPipeConn, out: []u8) conn_mod.Error!usize {
-        self.mu.lock();
-        defer self.mu.unlock();
-
-        const deadline = std.time.nanoTimestamp() + 2_000_000_000;
-        while (self.pos >= self.len and !self.closed) {
-            if (std.time.nanoTimestamp() >= deadline) return conn_mod.Error.Timeout;
-            self.cond.timedWait(&self.mu, 10_000_000) catch {};
-        }
-        if (self.closed and self.pos >= self.len) return conn_mod.Error.Closed;
-
-        const avail = self.len - self.pos;
-        const n = @min(avail, out.len);
-        @memcpy(out[0..n], self.buf[self.pos..][0..n]);
-        self.pos += n;
-        if (self.pos == self.len) {
-            self.pos = 0;
-            self.len = 0;
-        }
-        self.cond.broadcast();
-        return n;
-    }
-
-    pub fn write(self: *ConcurrentPipeConn, data: []const u8) conn_mod.Error!usize {
-        self.mu.lock();
-        defer self.mu.unlock();
-
-        const deadline = std.time.nanoTimestamp() + 2_000_000_000;
-        while (self.len > 0 and !self.closed) {
-            if (std.time.nanoTimestamp() >= deadline) return conn_mod.Error.Timeout;
-            self.cond.timedWait(&self.mu, 10_000_000) catch {};
-        }
-        if (self.closed) return conn_mod.Error.Closed;
-
-        const n = @min(data.len, self.buf.len);
-        @memcpy(self.buf[0..n], data[0..n]);
-        self.len = n;
-        self.pos = 0;
-        self.cond.broadcast();
-        return n;
-    }
-
-    pub fn close(self: *ConcurrentPipeConn) void {
-        self.mu.lock();
-        defer self.mu.unlock();
-        self.closed = true;
-        self.cond.broadcast();
-    }
-};

@@ -46,8 +46,8 @@
 //! ```
 
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-const att = @import("../host/att/att.zig");
+const embed = @import("../../../mod.zig");
+const att = embed.pkg.ble.host.att.att;
 
 // ============================================================================
 // Comptime Service/Characteristic Definition
@@ -140,7 +140,7 @@ pub const ResponseWriter = struct {
 /// independent threads via `Runtime.Thread.spawn()`, keeping the readLoop
 /// unblocked. Without `enableAsync()`, handlers run synchronously (useful for tests).
 pub fn GattServer(comptime Runtime: type, comptime services: []const ServiceDef) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
     const total_chars = comptime blk: {
         var n: usize = 0;
         for (services) |svc| n += svc.chars.len;

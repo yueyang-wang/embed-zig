@@ -1,5 +1,6 @@
 const std = @import("std");
-const rsa_contract = @import("../../crypto/rsa.zig");
+const embed = @import("../../../mod.zig");
+const rsa_contract = embed.runtime.crypto.rsa;
 
 const StdRsa = std.crypto.Certificate.rsa;
 

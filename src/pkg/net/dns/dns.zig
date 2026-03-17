@@ -21,14 +21,12 @@
 //!   const ip = try resolver.resolve("www.google.com");
 
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-const socket_mod = @import("../../../runtime/socket.zig");
-const conn_mod = @import("../conn.zig");
-const tls = struct {
-    pub fn Client(comptime Conn: type, comptime Runtime: type) type {
-        return @import("../tls/client.zig").Client(Conn, Runtime);
-    }
-};
+const embed = @import("../../../mod.zig");
+
+const runtime_suite = embed.runtime;
+const socket_mod = embed.runtime.socket;
+const conn_mod = embed.pkg.net.conn;
+const tls_client_mod = embed.pkg.net.tls.client;
 
 pub const Ipv4Address = [4]u8;
 
@@ -131,7 +129,7 @@ pub fn Resolver(comptime Runtime: type, comptime DomainResolver: type) type {
 ///     Pass `void` to disable (zero overhead).
 pub fn ResolverWithTls(comptime Runtime: type, comptime DomainResolver: type) type {
     const SConn = conn_mod.SocketConn(Runtime.Socket);
-    return ResolverImpl(Runtime, tls.Client(SConn, Runtime), DomainResolver);
+    return ResolverImpl(Runtime, tls_client_mod.Client(SConn, Runtime), DomainResolver);
 }
 
 /// Validate DomainResolver interface at comptime.
@@ -579,80 +577,3 @@ pub fn parseResponse(data: []const u8) !Ipv4Address {
 pub fn formatIpv4(addr: Ipv4Address, buf: []u8) []const u8 {
     return std.fmt.bufPrint(buf, "{d}.{d}.{d}.{d}", .{ addr[0], addr[1], addr[2], addr[3] }) catch "?.?.?.?";
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-// ============================================================================
-// DomainResolver Tests
-// ============================================================================
-
-const TestMockSocketBackend = struct {
-    pub fn udp() socket_mod.Error!@This() {
-        return .{};
-    }
-    pub fn tcp() socket_mod.Error!@This() {
-        return .{};
-    }
-    pub fn close(_: *@This()) void {}
-    pub fn connect(_: *@This(), _: [4]u8, _: u16) socket_mod.Error!void {}
-    pub fn send(_: *@This(), _: []const u8) socket_mod.Error!usize {
-        return 0;
-    }
-    pub fn recv(_: *@This(), _: []u8) socket_mod.Error!usize {
-        return 0;
-    }
-    pub fn sendTo(_: *@This(), _: [4]u8, _: u16, _: []const u8) socket_mod.Error!usize {
-        return 0;
-    }
-    pub fn recvFrom(_: *@This(), _: []u8) socket_mod.Error!socket_mod.RecvFromResult {
-        return .{ .len = 0, .src_addr = .{ 0, 0, 0, 0 }, .src_port = 0 };
-    }
-    pub fn setRecvTimeout(_: *@This(), _: u32) void {}
-    pub fn setSendTimeout(_: *@This(), _: u32) void {}
-    pub fn setTcpNoDelay(_: *@This(), _: bool) void {}
-    pub fn getFd(_: *@This()) i32 {
-        return 0;
-    }
-    pub fn setNonBlocking(_: *@This(), _: bool) socket_mod.Error!void {}
-    pub fn bind(_: *@This(), _: [4]u8, _: u16) socket_mod.Error!void {}
-    pub fn getBoundPort(_: *@This()) socket_mod.Error!u16 {
-        return 0;
-    }
-    pub fn listen(_: *@This()) socket_mod.Error!void {}
-    pub fn accept(_: *@This()) socket_mod.Error!@This() {
-        return .{};
-    }
-};
-
-pub const TestMockSocket = socket_mod.Make(TestMockSocketBackend);
-
-/// Test runtime with mock socket for unit tests.
-pub const TestRuntime = runtime_suite.Make(struct {
-    pub const Time = @import("../../../runtime/std/time.zig").Time;
-    pub const Log = @import("../../../runtime/std/log.zig").Log;
-    pub const Rng = @import("../../../runtime/std/rng.zig").Rng;
-    pub const Mutex = @import("../../../runtime/std/sync/mutex.zig").Mutex;
-    pub const Condition = @import("../../../runtime/std/sync/condition.zig").Condition;
-    pub const Notify = @import("../../../runtime/std/sync/notify.zig").Notify;
-    pub const Thread = @import("../../../runtime/std/thread.zig").Thread;
-    pub const System = @import("../../../runtime/std/system.zig").System;
-    pub const Fs = @import("../../../runtime/std/fs.zig").Fs;
-    pub const ChannelFactory = @import("../../../runtime/std/channel_factory.zig").ChannelFactory;
-    pub const Socket = TestMockSocketBackend;
-    pub const OtaBackend = @import("../../../runtime/std/ota_backend.zig").OtaBackend;
-    pub const Crypto = @import("../../../runtime/std/crypto/suite.zig");
-});
-
-// ============================================================================
-// Real Network Tests (using runtime.std.Socket)
-// ============================================================================
-
-pub fn isAliDnsIp(ip: Ipv4Address) bool {
-    return std.mem.eql(u8, &ip, &Servers.alidns) or std.mem.eql(u8, &ip, &Servers.alidns2);
-}
-
-// =========================================================================
-// DoH (DNS over HTTPS) tests — requires TLS + Crypto
-// =========================================================================

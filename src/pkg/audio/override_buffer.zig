@@ -9,10 +9,10 @@
 //! consumer can afford to wait.
 
 const std = @import("std");
-const runtime_suite = @import("../../runtime/runtime.zig");
+const embed = @import("../../mod.zig");
 
 pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     return struct {
         const Self = @This();

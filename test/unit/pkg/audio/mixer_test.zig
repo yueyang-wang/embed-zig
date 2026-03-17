@@ -1,11 +1,6 @@
 const std = @import("std");
 const embed = @import("embed");
-const module = embed.pkg.audio.mixer;
-const Buffer = module.Buffer;
-const Mixer = module.Mixer;
-const resampler_mod = module.resampler_mod;
-const Allocator = module.Allocator;
-const Resampler = module.Resampler;
+const mixer_mod = embed.pkg.audio.mixer;
 
 const StdRuntime = embed.runtime.std;
 
@@ -14,7 +9,7 @@ const StdRuntime = embed.runtime.std;
 // ---------------------------------------------------------------------------
 
 const testing = std.testing;
-const TestBuf = Buffer(StdRuntime);
+const TestBuf = mixer_mod.Buffer(StdRuntime);
 
 test "mixer buffer write and read roundtrip" {
     var buf = try TestBuf.init(testing.allocator, 64);
@@ -126,16 +121,16 @@ test "mixer buffer write blocks then unblocks on read" {
 }
 
 // ---------------------------------------------------------------------------
-// Mixer tests
+// mixer_mod.Mixer tests
 // ---------------------------------------------------------------------------
 
-const TestMx = Mixer(StdRuntime);
+const TestMx = mixer_mod.Mixer(StdRuntime);
 
 fn newMixer(config: TestMx.Config) TestMx {
     return TestMx.init(testing.allocator, config, StdRuntime.Mutex.init());
 }
 
-fn readAll(mx: *TestMx, allocator: Allocator) ![]i16 {
+fn readAll(mx: *TestMx, allocator: std.mem.Allocator) ![]i16 {
     var out = std.ArrayList(i16).empty;
     defer out.deinit(allocator);
 
@@ -578,11 +573,11 @@ test "concurrency: stalled track does not block active track output" {
 }
 
 const MockSock = struct {
-    allocator: Allocator,
+    allocator: std.mem.Allocator,
     mutex: StdRuntime.Mutex,
     bytes: std.ArrayList(u8),
 
-    fn init(allocator: Allocator) MockSock {
+    fn init(allocator: std.mem.Allocator) MockSock {
         return .{
             .allocator = allocator,
             .mutex = StdRuntime.Mutex.init(),
@@ -604,7 +599,7 @@ const MockSock = struct {
         }
     }
 
-    fn decodeSamples(self: *MockSock, allocator: Allocator) ![]i16 {
+    fn decodeSamples(self: *MockSock, allocator: std.mem.Allocator) ![]i16 {
         self.mutex.lock();
         defer self.mutex.unlock();
         const n = self.bytes.items.len / 2;

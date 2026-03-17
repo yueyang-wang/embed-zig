@@ -22,8 +22,9 @@
 //!   }
 
 const std = @import("std");
-const bus_mod = @import("../event/bus.zig");
-const flux_store = @import("../flux/store.zig");
+const embed = @import("../../mod.zig");
+const bus_mod = embed.pkg.event.bus;
+const flux_store = embed.pkg.flux.store;
 
 pub fn AppRuntime(
     comptime App: type,

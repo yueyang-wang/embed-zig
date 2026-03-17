@@ -24,13 +24,13 @@
 //!   [speaker_ring]  (OverrideBuffer — circular overwrite, also serves as ref)
 
 const std = @import("std");
-const runtime_suite = @import("../../runtime/runtime.zig");
-pub const mixer_mod = @import("mixer.zig");
-pub const obuf_mod = @import("override_buffer.zig");
-pub const resampler_mod = @import("resampler.zig");
+const embed = @import("../../mod.zig");
+const mixer_mod = @import("mixer.zig");
+const obuf_mod = @import("override_buffer.zig");
+const resampler_mod = @import("resampler.zig");
 
-pub const Allocator = std.mem.Allocator;
-pub const Format = resampler_mod.Format;
+const Allocator = std.mem.Allocator;
+const Format = resampler_mod.Format;
 
 // ---------------------------------------------------------------------------
 // Vtable: Beamformer — multi-mic matrix → mono
@@ -92,7 +92,7 @@ pub const Processor = struct {
 // ---------------------------------------------------------------------------
 
 pub fn Engine(comptime Runtime: type) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     const MixerType = mixer_mod.Mixer(Runtime);
     const InputBuf = obuf_mod.OverrideBuffer(InputFrame, Runtime);

@@ -13,19 +13,16 @@
 //! not on `Transport` directly — enabling mock transports for testing.
 
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-const socket_mod = @import("../../../runtime/socket.zig");
-const conn_mod = @import("../conn.zig");
-const tls_mod = struct {
-    pub fn Client(comptime Conn: type, comptime Runtime: type) type {
-        return @import("../tls/client.zig").Client(Conn, Runtime);
-    }
-};
-const dns_mod = @import("../dns/dns.zig");
-const url_mod = @import("../url/url.zig");
+const embed = @import("../../../mod.zig");
+const runtime_suite = embed.runtime;
+const socket_mod = embed.runtime.socket;
+const conn_mod = embed.pkg.net.conn;
+const tls_client_mod = embed.pkg.net.tls.client;
+const dns_mod = embed.pkg.net.dns;
+const url_mod = embed.pkg.net.url;
 const request_mod = @import("request.zig");
 
-pub const Method = request_mod.Method;
+const Method = request_mod.Method;
 
 pub const Scheme = enum {
     http,
@@ -133,7 +130,7 @@ pub fn Transport(
     const has_custom_resolver = DomainResolver != void;
 
     const SConn = conn_mod.SocketConn(Runtime.Socket);
-    const TlsClient = if (has_tls) tls_mod.Client(SConn, Runtime) else void;
+    const TlsClient = if (has_tls) tls_client_mod.Client(SConn, Runtime) else void;
     const DnsResolver = dns_mod.Resolver(Runtime, DomainResolver);
 
     return struct {
@@ -392,11 +389,3 @@ pub fn requestFromUrl(url_str: []const u8) TransportError!RoundTripRequest {
         .path = path,
     };
 }
-
-// =========================================================================
-// Tests
-// =========================================================================
-
-// =========================================================================
-// Real network tests — Transport(Socket, void, void, void) for HTTP-only
-// =========================================================================

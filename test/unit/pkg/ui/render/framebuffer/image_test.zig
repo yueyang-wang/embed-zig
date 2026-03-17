@@ -1,7 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const module = @import("embed").pkg.ui.render.image;
-const Image = module.Image;
+const Image = @import("embed").pkg.ui.render.image.Image;
 
 // ============================================================================
 // Tests

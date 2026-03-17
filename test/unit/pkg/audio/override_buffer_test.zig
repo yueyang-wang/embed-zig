@@ -1,7 +1,6 @@
 const std = @import("std");
 const embed = @import("embed");
-const module = embed.pkg.audio.override_buffer;
-const OverrideBuffer = module.OverrideBuffer;
+const override_buffer = embed.pkg.audio.override_buffer;
 
 const StdRuntime = embed.runtime.std;
 
@@ -11,7 +10,7 @@ const StdRuntime = embed.runtime.std;
 
 const testing = std.testing;
 
-const Buffer = OverrideBuffer(u8, StdRuntime);
+const Buffer = override_buffer.OverrideBuffer(u8, StdRuntime);
 const test_time: StdRuntime.Time = .{};
 
 test "OverrideBuffer: basic write then read" {
@@ -157,7 +156,7 @@ fn closerTask(ctx: ?*anyopaque) void {
 }
 
 test "OverrideBuffer: comptime with i16 type" {
-    const I16Buffer = OverrideBuffer(i16, StdRuntime);
+    const I16Buffer = override_buffer.OverrideBuffer(i16, StdRuntime);
     var storage: [8]i16 = undefined;
     var buf = I16Buffer.init(&storage);
     defer buf.deinit();

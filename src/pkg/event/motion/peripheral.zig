@@ -6,13 +6,10 @@
 //! from a dedicated thread/task; call `stop()` to exit the loop.
 
 const std = @import("std");
-const hal = struct {
-    pub const imu = @import("../../../hal/imu.zig");
-};
-const bus_mod = @import("../bus.zig");
+const embed = @import("../../../mod.zig");
+const bus_mod = embed.pkg.event.bus;
 const detector_mod = @import("detector.zig");
 const motion_types = @import("types.zig");
-const runtime_suite = @import("../../../runtime/runtime.zig");
 
 pub const Config = struct {
     id: []const u8 = "imu",
@@ -25,8 +22,8 @@ pub fn MotionPeripheral(
     comptime Runtime: type,
 ) type {
     comptime {
-        _ = runtime_suite.is(Runtime);
-        if (!hal.imu.is(Sensor)) @compileError("Sensor must be a hal.imu type");
+        _ = embed.runtime.is(Runtime);
+        if (!embed.hal.imu.is(Sensor)) @compileError("Sensor must be a hal.imu type");
     }
     const Det = detector_mod.Detector(Sensor);
     const Action = Det.ActionType;

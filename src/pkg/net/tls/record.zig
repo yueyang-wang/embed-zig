@@ -1,15 +1,13 @@
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-pub const common = @import("common.zig");
-pub const runtime = struct {
-    pub const std = @import("../../../runtime/std.zig");
-};
+const embed = @import("../../../mod.zig");
+const runtime_suite = embed.runtime;
+const common = @import("common.zig");
 
-pub const ContentType = common.ContentType;
-pub const ProtocolVersion = common.ProtocolVersion;
-pub const CipherSuite = common.CipherSuite;
-pub const AlertDescription = common.AlertDescription;
-pub const AlertLevel = common.AlertLevel;
+const ContentType = common.ContentType;
+const ProtocolVersion = common.ProtocolVersion;
+const CipherSuite = common.CipherSuite;
+const AlertDescription = common.AlertDescription;
+const AlertLevel = common.AlertLevel;
 
 pub const RecordHeader = struct {
     content_type: ContentType,
@@ -448,44 +446,3 @@ pub fn RecordLayer(comptime Conn: type, comptime Runtime: type) type {
         }
     };
 }
-
-pub const MockConn = struct {
-    write_buf: [16384]u8 = undefined,
-    write_len: usize = 0,
-    read_buf: [16384]u8 = undefined,
-    read_len: usize = 0,
-    read_pos: usize = 0,
-    closed: bool = false,
-
-    const conn_mod = @import("../conn.zig");
-
-    pub fn read(self: *MockConn, buf: []u8) conn_mod.Error!usize {
-        if (self.closed) return conn_mod.Error.Closed;
-        if (self.read_pos >= self.read_len) return conn_mod.Error.ReadFailed;
-        const avail = self.read_len - self.read_pos;
-        const n = @min(avail, buf.len);
-        @memcpy(buf[0..n], self.read_buf[self.read_pos..][0..n]);
-        self.read_pos += n;
-        return n;
-    }
-
-    pub fn write(self: *MockConn, data: []const u8) conn_mod.Error!usize {
-        if (self.closed) return conn_mod.Error.Closed;
-        const space = self.write_buf.len - self.write_len;
-        const n = @min(space, data.len);
-        if (n == 0) return conn_mod.Error.WriteFailed;
-        @memcpy(self.write_buf[self.write_len..][0..n], data[0..n]);
-        self.write_len += n;
-        return n;
-    }
-
-    pub fn close(self: *MockConn) void {
-        self.closed = true;
-    }
-
-    pub fn feedData(self: *MockConn, data: []const u8) void {
-        @memcpy(self.read_buf[0..data.len], data);
-        self.read_len = data.len;
-        self.read_pos = 0;
-    }
-};

@@ -13,12 +13,12 @@ const testing = std.testing;
 const embed = @import("embed");
 const bus_mod = embed.pkg.event.bus;
 const Bus = bus_mod.Bus;
-const button = embed.pkg.event.button;
+const event = embed.pkg.event;
 const Std = embed.runtime.std;
 
-const RawEvent = button.RawEvent;
-const GestureEvent = button.GestureEvent;
-const GestureConfig = button.GestureConfig;
+const RawEvent = event.button.RawEvent;
+const GestureEvent = event.button.GestureEvent;
+const GestureConfig = event.button.GestureConfig;
 
 var fake_time_ms: u64 = 0;
 
@@ -56,12 +56,12 @@ const AppBus = Bus(.{
     .gesture = GestureEvent,
 }, Std);
 
-const Gesture = button.ButtonGesture(FakeRuntime, .{
+const Gesture = event.button.ButtonGesture(FakeRuntime, .{
     .multi_click_window_ms = 200,
     .long_press_ms = 500,
 });
 
-test "complete pipeline: button press/release → gesture click via Processor" {
+test "complete pipeline: event.button press/release → gesture click via Processor" {
     var bus = try AppBus.init(testing.allocator, 16);
     defer bus.deinit();
 

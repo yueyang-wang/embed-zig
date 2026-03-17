@@ -4,30 +4,29 @@
 //! CLI sends command JSON via WRITE_X, firmware executes and returns
 //! response JSON via READ_X.
 
-pub const shell_mod = @import("shell.zig");
-pub const transport_mod = @import("transport.zig");
-
-pub const Shell = shell_mod.Shell;
-pub const HandlerFn = shell_mod.HandlerFn;
-pub const Request = shell_mod.Request;
-pub const ResponseWriter = shell_mod.ResponseWriter;
-pub const CancellationToken = shell_mod.CancellationToken;
-pub const ParsedCommand = shell_mod.ParsedCommand;
-pub const parseRequest = shell_mod.parseRequest;
-pub const encodeResponse = shell_mod.encodeResponse;
-pub const GattTransport = transport_mod.GattTransport;
-
 const std = @import("std");
-const xfer = @import("../xfer/api.zig");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-const thread_mod = @import("../../../runtime/thread.zig");
+const embed = @import("../../../mod.zig");
+const shell_mod = @import("shell.zig");
+const transport_mod = @import("transport.zig");
+
+const xfer_mod = embed.pkg.ble.xfer;
+
+const CancellationToken = shell_mod.CancellationToken;
+const encodeResponse = shell_mod.encodeResponse;
+const GattTransport = transport_mod.GattTransport;
+const HandlerFn = shell_mod.HandlerFn;
+const ParsedCommand = shell_mod.ParsedCommand;
+const parseRequest = shell_mod.parseRequest;
+const Request = shell_mod.Request;
+const ResponseWriter = shell_mod.ResponseWriter;
+const Shell = shell_mod.Shell;
 
 pub fn Server(comptime Runtime: type) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     const Transport = GattTransport(Runtime);
-    const WX = xfer.WriteX(Transport);
-    const RX = xfer.ReadX(Transport);
+    const WX = xfer_mod.WriteX(Transport);
+    const RX = xfer_mod.ReadX(Transport);
 
     return struct {
         const Self = @This();
@@ -37,7 +36,7 @@ pub fn Server(comptime Runtime: type) type {
             recv_buf_size: usize = 8192,
             resp_buf_size: usize = 4096,
             send_redundancy: u8 = 2,
-            spawn_config: thread_mod.SpawnConfig = .{},
+            spawn_config: embed.runtime.thread.SpawnConfig = .{},
         };
 
         transport: *Transport,

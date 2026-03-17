@@ -28,7 +28,8 @@
 //!   const resp = try client.query(nonce);
 
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
+const embed = @import("../../../mod.zig");
+const runtime_suite = embed.runtime;
 
 pub const Ipv4Address = [4]u8;
 
@@ -404,51 +405,6 @@ pub fn ntpToUnixMs(ntp: NtpTimestamp) i64 {
     return unix_secs * 1000 + ms;
 }
 
-const rng_mod = @import("../../../runtime/rng.zig");
-
-/// Test runtimes for generateNonce unit tests.
-pub const MockRngRuntime = runtime_suite.Make(struct {
-    pub const Time = @import("../../../runtime/std/time.zig").Time;
-    pub const Log = @import("../../../runtime/std/log.zig").Log;
-    pub const Rng = struct {
-        pub fn fill(_: @This(), buf: []u8) rng_mod.Error!void {
-            for (buf, 0..) |*b, i| {
-                b.* = @truncate(i + 42);
-            }
-        }
-    };
-    pub const Mutex = @import("../../../runtime/std/sync/mutex.zig").Mutex;
-    pub const Condition = @import("../../../runtime/std/sync/condition.zig").Condition;
-    pub const Notify = @import("../../../runtime/std/sync/notify.zig").Notify;
-    pub const Thread = @import("../../../runtime/std/thread.zig").Thread;
-    pub const System = @import("../../../runtime/std/system.zig").System;
-    pub const Fs = @import("../../../runtime/std/fs.zig").Fs;
-    pub const ChannelFactory = @import("../../../runtime/std/channel_factory.zig").ChannelFactory;
-    pub const Socket = @import("../../../runtime/std/socket.zig").Socket;
-    pub const OtaBackend = @import("../../../runtime/std/ota_backend.zig").OtaBackend;
-    pub const Crypto = @import("../../../runtime/std/crypto/suite.zig");
-});
-
-pub const ZeroRngRuntime = runtime_suite.Make(struct {
-    pub const Time = @import("../../../runtime/std/time.zig").Time;
-    pub const Log = @import("../../../runtime/std/log.zig").Log;
-    pub const Rng = struct {
-        pub fn fill(_: @This(), buf: []u8) rng_mod.Error!void {
-            for (buf) |*b| b.* = 0;
-        }
-    };
-    pub const Mutex = @import("../../../runtime/std/sync/mutex.zig").Mutex;
-    pub const Condition = @import("../../../runtime/std/sync/condition.zig").Condition;
-    pub const Notify = @import("../../../runtime/std/sync/notify.zig").Notify;
-    pub const Thread = @import("../../../runtime/std/thread.zig").Thread;
-    pub const System = @import("../../../runtime/std/system.zig").System;
-    pub const Fs = @import("../../../runtime/std/fs.zig").Fs;
-    pub const ChannelFactory = @import("../../../runtime/std/channel_factory.zig").ChannelFactory;
-    pub const Socket = @import("../../../runtime/std/socket.zig").Socket;
-    pub const OtaBackend = @import("../../../runtime/std/ota_backend.zig").OtaBackend;
-    pub const Crypto = @import("../../../runtime/std/crypto/suite.zig");
-});
-
 /// Convert Unix milliseconds to NTP timestamp
 pub fn unixMsToNtp(unix_ms: i64) NtpTimestamp {
     const unix_secs = @divFloor(unix_ms, 1000);
@@ -488,16 +444,4 @@ pub fn formatTime(epoch_ms: i64, buf: []u8) []const u8 {
         day_seconds.getMinutesIntoHour(),
         day_seconds.getSecondsIntoMinute(),
     }) catch "????-??-??T??:??:??Z";
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-// ============================================================================
-// Real Network Tests (using runtime.std.Socket)
-// ============================================================================
-
-pub fn nowMs() i64 {
-    return @intCast(@divFloor(std.time.nanoTimestamp(), 1_000_000));
 }

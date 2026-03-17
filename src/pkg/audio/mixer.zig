@@ -8,17 +8,17 @@
 //! while using a simpler in-memory queue strategy for deterministic bring-up.
 
 const std = @import("std");
-const runtime_suite = @import("../../runtime/runtime.zig");
-pub const resampler_mod = @import("resampler.zig");
+const embed = @import("../../mod.zig");
+const resampler_mod = @import("resampler.zig");
 
-pub const Allocator = std.mem.Allocator;
-pub const Resampler = resampler_mod.Resampler;
+const Allocator = std.mem.Allocator;
+const Resampler = resampler_mod.Resampler;
 
 /// Bounded sample buffer for mixer tracks.
 /// Write blocks when the buffer is at capacity (backpressure).
 /// Read is non-blocking — returns however many samples are available.
 pub fn Buffer(comptime Runtime: type) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     return struct {
         const Self = @This();
@@ -149,7 +149,7 @@ pub fn Buffer(comptime Runtime: type) type {
 }
 
 pub fn Mixer(comptime Runtime: type) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     const BufferType = Buffer(Runtime);
 

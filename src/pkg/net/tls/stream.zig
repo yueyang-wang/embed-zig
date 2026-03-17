@@ -1,11 +1,9 @@
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-pub const conn_mod = @import("../conn.zig");
-pub const runtime = struct {
-    pub const std = @import("../../../runtime/std.zig");
-};
-pub const client_mod = @import("client.zig");
-pub const common = @import("common.zig");
+const embed = @import("../../../mod.zig");
+const runtime_suite = embed.runtime;
+const conn_mod = embed.pkg.net.conn;
+const client_mod = @import("client.zig");
+const common = @import("common.zig");
 
 pub const Options = struct {
     skip_cert_verify: bool = false,
@@ -93,18 +91,3 @@ pub fn Stream(comptime Conn: type, comptime Runtime: type) type {
         }
     };
 }
-
-pub const TestMockConn = struct {
-    const Self = @This();
-    closed: bool = false,
-
-    pub fn read(_: *Self, _: []u8) conn_mod.Error!usize {
-        return conn_mod.Error.ReadFailed;
-    }
-    pub fn write(_: *Self, _: []const u8) conn_mod.Error!usize {
-        return conn_mod.Error.WriteFailed;
-    }
-    pub fn close(self: *Self) void {
-        self.closed = true;
-    }
-};

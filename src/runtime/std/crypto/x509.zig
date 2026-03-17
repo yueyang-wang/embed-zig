@@ -1,5 +1,6 @@
 const std = @import("std");
-const x509_contract = @import("../../crypto/x509.zig");
+const embed = @import("../../../mod.zig");
+const x509_contract = embed.runtime.crypto.x509;
 
 const Certificate = std.crypto.Certificate;
 const Bundle = Certificate.Bundle;

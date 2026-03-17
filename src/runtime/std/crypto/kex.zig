@@ -1,5 +1,6 @@
 const std = @import("std");
-const x25519_contract = @import("../../crypto/x25519.zig");
+const embed = @import("../../../mod.zig");
+const x25519_contract = embed.runtime.crypto.x25519;
 
 pub const X25519 = struct {
     pub fn generateDeterministic(seed: [32]u8) anyerror!x25519_contract.KeyPair {

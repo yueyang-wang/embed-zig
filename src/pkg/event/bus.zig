@@ -50,7 +50,7 @@
 //!   const r = try bus.recv();
 
 const std = @import("std");
-const runtime_suite = @import("../../runtime/runtime.zig");
+const embed = @import("../../mod.zig");
 
 /// Type-erased callback for injecting a single event type into the bus.
 /// Peripherals receive an EventInjector from `bus.Injector(.tag)` and call
@@ -86,7 +86,7 @@ pub fn Bus(
     if (output_info.fields.len == 0) @compileError("Bus output spec must have at least one field");
 
     comptime {
-        _ = runtime_suite.is(Runtime);
+        _ = embed.runtime.is(Runtime);
         for (input_info.fields) |f| {
             if (std.mem.eql(u8, f.name, "tick")) {
                 @compileError("Bus input spec must not contain .tick — it is added automatically");

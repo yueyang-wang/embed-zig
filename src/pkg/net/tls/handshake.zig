@@ -1,19 +1,17 @@
 const std = @import("std");
-const runtime_suite = @import("../../../runtime/runtime.zig");
-pub const runtime = struct {
-    pub const std = @import("../../../runtime/std.zig");
-};
-pub const common = @import("common.zig");
-pub const extensions = @import("extensions.zig");
-pub const record = @import("record.zig");
-pub const kdf = @import("kdf.zig");
+const embed = @import("../../../mod.zig");
+const runtime_suite = embed.runtime;
+const common = @import("common.zig");
+const extensions = @import("extensions.zig");
+const record = @import("record.zig");
+const kdf = @import("kdf.zig");
 
-pub const HandshakeType = common.HandshakeType;
-pub const ProtocolVersion = common.ProtocolVersion;
-pub const CipherSuite = common.CipherSuite;
-pub const NamedGroup = common.NamedGroup;
-pub const SignatureScheme = common.SignatureScheme;
-pub const ContentType = common.ContentType;
+const HandshakeType = common.HandshakeType;
+const ProtocolVersion = common.ProtocolVersion;
+const CipherSuite = common.CipherSuite;
+const NamedGroup = common.NamedGroup;
+const SignatureScheme = common.SignatureScheme;
+const ContentType = common.ContentType;
 
 pub const HandshakeHeader = struct {
     msg_type: HandshakeType,

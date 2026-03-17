@@ -12,11 +12,11 @@
 //!   bus.use(gp);
 
 const button_event = @import("event.zig");
-const runtime_suite = @import("../../../runtime/runtime.zig");
+const embed = @import("../../../mod.zig");
 
-pub const RawEvent = button_event.RawEvent;
-pub const RawEventCode = button_event.RawEventCode;
-pub const GestureEvent = button_event.GestureEvent;
+const RawEvent = button_event.RawEvent;
+const RawEventCode = button_event.RawEventCode;
+const GestureEvent = button_event.GestureEvent;
 
 pub const GestureConfig = struct {
     long_press_ms: u64 = 500,
@@ -24,7 +24,7 @@ pub const GestureConfig = struct {
 };
 
 pub fn ButtonGesture(comptime Runtime: type, comptime config: GestureConfig) type {
-    comptime _ = runtime_suite.is(Runtime);
+    comptime _ = embed.runtime.is(Runtime);
 
     return struct {
         const Self = @This();
