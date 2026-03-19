@@ -3,15 +3,13 @@ const embed = @import("embed");
 const override_buffer = embed.pkg.audio.override_buffer;
 
 const StdRuntime = embed.runtime.std;
-
-// ============================================================================
-// Tests
-// ============================================================================
+const RawTime = @typeInfo(@TypeOf(@as(StdRuntime.Time, undefined).impl)).pointer.child;
 
 const testing = std.testing;
 
 const Buffer = override_buffer.OverrideBuffer(u8, StdRuntime);
-const test_time: StdRuntime.Time = .{};
+var raw_time: RawTime = .{};
+const test_time = StdRuntime.Time.init(&raw_time);
 
 test "OverrideBuffer: basic write then read" {
     var storage: [8]u8 = undefined;

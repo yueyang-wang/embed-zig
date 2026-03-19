@@ -3,9 +3,13 @@ const testing = std.testing;
 const embed = @import("embed");
 const Ntp = embed.pkg.net.ntp;
 const Std = embed.runtime.std;
+const RawTime = @typeInfo(@TypeOf(@as(Std.Time, undefined).impl)).pointer.child;
+
+var ntp_raw_time: RawTime = .{};
+const ntp_time = Std.Time.init(&ntp_raw_time);
 
 fn nowMs() i64 {
-    return @intCast(Std.Time.nowMs(.{}));
+    return @intCast(ntp_time.nowMs());
 }
 
 test "NTP timestamp conversion" {

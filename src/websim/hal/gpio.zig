@@ -1,12 +1,12 @@
 const std = @import("std");
 const embed = @import("../../mod.zig");
-const gpio_hal = embed.hal.gpio;
 const RemoteHal = embed.websim.RemoteHal;
 
-const Error = gpio_hal.Error;
-const Level = gpio_hal.Level;
-const Mode = gpio_hal.Mode;
-const Pull = gpio_hal.Pull;
+// Local GPIO contract types (hal.gpio was removed; low-level peripherals are internal)
+pub const Error = error{InvalidPin};
+pub const Level = enum(u8) { low = 0, high = 1 };
+pub const Mode = enum { input, output, open_drain };
+pub const Pull = enum { none, up, down };
 
 pub const max_pins = 40;
 

@@ -2,58 +2,46 @@
 
 const Seal = struct {};
 
-pub fn Make(comptime factory: fn (comptime usize) type) type {
+pub fn Make(comptime Impl: type) type {
+    comptime {
+        _ = @as(*const fn (*Impl, ?[]const u8, []const u8, *[32]u8) void, &Impl.sha256Extract);
+        _ = @as(*const fn (*Impl, *const [32]u8, []const u8, []u8) void, &Impl.sha256Expand);
+        _ = @as(*const fn (*Impl, ?[]const u8, []const u8, *[48]u8) void, &Impl.sha384Extract);
+        _ = @as(*const fn (*Impl, *const [48]u8, []const u8, []u8) void, &Impl.sha384Expand);
+    }
+
     return struct {
         pub const seal: Seal = .{};
+        impl: *Impl,
 
-        pub fn Hkdf(comptime prk_len: usize) type {
-            const Impl = factory(prk_len);
+        const Self = @This();
 
-            comptime {
-                if (!@hasDecl(Impl, "prk_length") or Impl.prk_length != prk_len) {
-                    @compileError("HKDF.prk_length mismatch");
-                }
-
-                _ = @as(*const fn (?[]const u8, []const u8) [prk_len]u8, &Impl.extract);
-
-                if (!@hasDecl(Impl, "expand")) {
-                    @compileError("HKDF missing expand");
-                }
-            }
-
-            return struct {
-                pub const prk_length = prk_len;
-                pub const BackendType = Impl;
-
-                pub fn extract(salt: ?[]const u8, ikm: []const u8) [prk_len]u8 {
-                    return Impl.extract(salt, ikm);
-                }
-
-                pub fn expand(prk: *const [prk_len]u8, ctx: []const u8, comptime len: usize) [len]u8 {
-                    return Impl.expand(prk, ctx, len);
-                }
-            };
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn Sha256() type {
-            return Hkdf(32);
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
         }
 
-        pub fn Sha384() type {
-            return Hkdf(48);
+        pub fn sha256Extract(self: Self, salt: ?[]const u8, ikm: []const u8, out: *[32]u8) void {
+            self.impl.sha256Extract(salt, ikm, out);
         }
 
-        pub fn Sha512() type {
-            return Hkdf(64);
+        pub fn sha256Expand(self: Self, prk: *const [32]u8, ctx: []const u8, out: []u8) void {
+            self.impl.sha256Expand(prk, ctx, out);
+        }
+
+        pub fn sha384Extract(self: Self, salt: ?[]const u8, ikm: []const u8, out: *[48]u8) void {
+            self.impl.sha384Extract(salt, ikm, out);
+        }
+
+        pub fn sha384Expand(self: Self, prk: *const [48]u8, ctx: []const u8, out: []u8) void {
+            self.impl.sha384Expand(prk, ctx, out);
         }
     };
 }
 
-pub fn is(comptime T: type) type {
-    comptime {
-        if (!@hasDecl(T, "seal") or @TypeOf(T.seal) != Seal) {
-            @compileError("Impl must have pub const seal: hkdf.Seal — use hkdf.Make(factory) to construct");
-        }
-    }
-    return T;
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

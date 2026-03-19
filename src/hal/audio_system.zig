@@ -1,133 +1,109 @@
-//! Unified audio system HAL contract.
+//! HAL Audio System Contract
 //!
-//! Models mic capture + speaker-reference + speaker output as a single
-//! coordinated subsystem.  The driver owns the entire audio pipeline:
+//! Unified mic capture + speaker playback + speaker-reference subsystem.
+//! The driver owns the entire audio pipeline coordination:
 //!
-//!   - `readFrame` returns all mic channels **and** a mandatory ref channel.
-//!   - `writeSpk` pushes samples to the speaker.
-//!   - Per-mic gain is set via `setMicGain(index, dB)`.
-//!   - Speaker gain is set via `setSpkGain(dB)`; the driver automatically
-//!     derives the ref gain from the speaker gain.
-//!   - Ref-to-mic time alignment is the driver's responsibility.
+//!   - read() returns all mic channels and a mandatory ref channel
+//!   - write() pushes samples to the speaker
+//!   - Per-mic and speaker gain control
+//!   - Ref-to-mic time alignment is the driver's responsibility
+//!
+//! Impl must provide all methods listed in the Make() comptime checks.
 
-const hal_marker = @import("marker.zig");
+pub const MicFrame = struct {
+    mic: []const []const i16,
+    ref: []const i16,
+};
 
 pub const Error = error{
     WouldBlock,
     Timeout,
     Overflow,
     InvalidState,
-    AudioSystemError,
+    Unexpected,
 };
 
-pub const Config = struct {
-    sample_rate: u32 = 16000,
-    mic_count: u8 = 1,
-};
+const Seal = struct {};
 
-pub fn Frame(comptime mic_count: u8) type {
+pub fn Make(comptime Impl: type) type {
+    comptime {
+        // info
+        _ = @as(*const fn (*const Impl) u32, &Impl.getSampleRate);
+        _ = @as(*const fn (*const Impl) u8, &Impl.getMicCount);
+
+        // capture
+        _ = @as(*const fn (*Impl) Error!MicFrame, &Impl.read);
+
+        // playback
+        _ = @as(*const fn (*Impl, []const i16) Error!usize, &Impl.write);
+
+        // gain
+        _ = @as(*const fn (*Impl, u8, i8) Error!void, &Impl.setMicGain);
+        _ = @as(*const fn (*Impl, i8) Error!void, &Impl.setSpkGain);
+
+        // lifecycle
+        _ = @as(*const fn (*Impl) Error!void, &Impl.start);
+        _ = @as(*const fn (*Impl) Error!void, &Impl.stop);
+    }
+
     return struct {
-        mic: [mic_count][]const i16,
-        ref: []const i16,
+        pub const seal: Seal = .{};
+        driver: *Impl,
+
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .driver = driver };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.driver = undefined;
+        }
+
+        // -- info --
+
+        pub fn getSampleRate(self: Self) u32 {
+            return self.driver.getSampleRate();
+        }
+
+        pub fn getMicCount(self: Self) u8 {
+            return self.driver.getMicCount();
+        }
+
+        // -- capture --
+
+        pub fn read(self: Self) Error!MicFrame {
+            return self.driver.read();
+        }
+
+        // -- playback --
+
+        pub fn write(self: Self, buffer: []const i16) Error!usize {
+            return self.driver.write(buffer);
+        }
+
+        // -- gain --
+
+        pub fn setMicGain(self: Self, mic_index: u8, gain_db: i8) Error!void {
+            return self.driver.setMicGain(mic_index, gain_db);
+        }
+
+        pub fn setSpkGain(self: Self, gain_db: i8) Error!void {
+            return self.driver.setSpkGain(gain_db);
+        }
+
+        // -- lifecycle --
+
+        pub fn start(self: Self) Error!void {
+            return self.driver.start();
+        }
+
+        pub fn stop(self: Self) Error!void {
+            return self.driver.stop();
+        }
     };
 }
 
 pub fn is(comptime T: type) bool {
-    if (@typeInfo(T) != .@"struct") return false;
-    if (!@hasDecl(T, "_hal_marker")) return false;
-    const marker = T._hal_marker;
-    if (@TypeOf(marker) != hal_marker.Marker) return false;
-    return marker.kind == .audio_system;
-}
-
-/// spec must define:
-///   - Driver          — concrete driver type
-///   - meta.id         — []const u8 identifier
-///   - config          — Config (sample_rate > 0, mic_count > 0)
-///
-/// Driver must implement:
-///   - readFrame(*Driver) Error!Frame(config.mic_count)
-///   - writeSpk(*Driver, []const i16) Error!usize
-///   - setMicGain(*Driver, u8, i8) Error!void
-///   - setSpkGain(*Driver, i8) Error!void
-///   - start(*Driver) Error!void
-///   - stop(*Driver) Error!void
-pub fn from(comptime spec: type) type {
-    const BaseDriver = comptime switch (@typeInfo(spec.Driver)) {
-        .pointer => |p| p.child,
-        else => spec.Driver,
-    };
-
-    const cfg: Config = comptime if (@hasDecl(spec, "config")) spec.config else .{};
-    const FrameType = Frame(cfg.mic_count);
-
-    comptime {
-        if (cfg.sample_rate == 0) {
-            @compileError("audio_system config.sample_rate must be > 0");
-        }
-        if (cfg.mic_count == 0) {
-            @compileError("audio_system config.mic_count must be > 0");
-        }
-
-        _ = @as(*const fn (*BaseDriver) Error!FrameType, &BaseDriver.readFrame);
-        _ = @as(*const fn (*BaseDriver, []const i16) Error!usize, &BaseDriver.writeSpk);
-        _ = @as(*const fn (*BaseDriver, u8, i8) Error!void, &BaseDriver.setMicGain);
-        _ = @as(*const fn (*BaseDriver, i8) Error!void, &BaseDriver.setSpkGain);
-        _ = @as(*const fn (*BaseDriver) Error!void, &BaseDriver.start);
-        _ = @as(*const fn (*BaseDriver) Error!void, &BaseDriver.stop);
-
-        _ = @as([]const u8, spec.meta.id);
-    }
-
-    const Driver = spec.Driver;
-    return struct {
-        const Self = @This();
-
-        pub const _hal_marker: hal_marker.Marker = .{
-            .kind = .audio_system,
-            .id = spec.meta.id,
-        };
-        pub const DriverType = Driver;
-        pub const meta = spec.meta;
-        pub const config: Config = cfg;
-        pub const FrameT = FrameType;
-
-        driver: *Driver,
-
-        pub fn init(driver: *Driver) Self {
-            return .{ .driver = driver };
-        }
-
-        pub fn readFrame(self: *Self) Error!FrameT {
-            return self.driver.readFrame();
-        }
-
-        pub fn writeSpk(self: *Self, buffer: []const i16) Error!usize {
-            return self.driver.writeSpk(buffer);
-        }
-
-        pub fn setMicGain(self: *Self, mic_index: u8, gain_db: i8) Error!void {
-            return self.driver.setMicGain(mic_index, gain_db);
-        }
-
-        pub fn setSpkGain(self: *Self, gain_db: i8) Error!void {
-            return self.driver.setSpkGain(gain_db);
-        }
-
-        pub fn start(self: *Self) Error!void {
-            return self.driver.start();
-        }
-
-        pub fn stop(self: *Self) Error!void {
-            return self.driver.stop();
-        }
-
-        pub fn samplesForMs(duration_ms: u32) u32 {
-            return cfg.sample_rate * duration_ms / 1000;
-        }
-
-        pub fn msForSamples(samples: u32) u32 {
-            return samples * 1000 / cfg.sample_rate;
-        }
-    };
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

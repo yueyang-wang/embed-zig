@@ -10,7 +10,7 @@ pub const TimedWaitResult = enum {
 const Seal = struct {};
 
 /// Construct a sealed Condition wrapper from a backend Impl and raw Mutex type.
-/// Impl must provide: init, deinit, wait, signal, broadcast, timedWait.
+/// Impl must provide: wait, signal, broadcast, timedWait.
 pub fn Make(comptime Impl: type, comptime MutexImpl: type) type {
     const SealedMutex = mutex_mod.Make(MutexImpl);
 
@@ -19,53 +19,46 @@ pub fn Make(comptime Impl: type, comptime MutexImpl: type) type {
             @compileError("Condition.MutexType does not match provided MutexImpl");
         }
 
-        _ = @as(*const fn () Impl, &Impl.init);
-        _ = @as(*const fn (*Impl) void, &Impl.deinit);
         _ = @as(*const fn (*Impl, *MutexImpl) void, &Impl.wait);
         _ = @as(*const fn (*Impl) void, &Impl.signal);
         _ = @as(*const fn (*Impl) void, &Impl.broadcast);
         _ = @as(*const fn (*Impl, *MutexImpl, u64) TimedWaitResult, &Impl.timedWait);
     }
 
-    const ConditionType = struct {
-        impl: Impl,
+    return struct {
         pub const seal: Seal = .{};
         pub const MutexType = SealedMutex;
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn init() @This() {
-            return .{ .impl = Impl.init() };
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn deinit(self: *@This()) void {
-            self.impl.deinit();
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
         }
 
-        pub fn wait(self: *@This(), mutex: *SealedMutex) void {
-            self.impl.wait(&mutex.impl);
+        pub fn wait(self: Self, mutex: *SealedMutex) void {
+            self.impl.wait(mutex.impl);
         }
 
-        pub fn signal(self: *@This()) void {
+        pub fn signal(self: Self) void {
             self.impl.signal();
         }
 
-        pub fn broadcast(self: *@This()) void {
+        pub fn broadcast(self: Self) void {
             self.impl.broadcast();
         }
 
-        pub fn timedWait(self: *@This(), mutex: *SealedMutex, timeout_ns: u64) TimedWaitResult {
-            return self.impl.timedWait(&mutex.impl, timeout_ns);
+        pub fn timedWait(self: Self, mutex: *SealedMutex, timeout_ns: u64) TimedWaitResult {
+            return self.impl.timedWait(mutex.impl, timeout_ns);
         }
     };
-    return is(ConditionType);
 }
 
-/// Validate that Impl satisfies the sealed Condition contract.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: condition.Seal — use condition.Make(Backend) to construct");
-        }
-    }
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

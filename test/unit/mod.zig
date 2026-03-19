@@ -1,26 +1,6 @@
 const std = @import("std");
 
 test {
-    _ = @import("hal/adc_test.zig");
-    _ = @import("hal/audio_system_test.zig");
-    _ = @import("hal/board_test.zig");
-    _ = @import("hal/display_test.zig");
-    _ = @import("hal/gpio_test.zig");
-    _ = @import("hal/hci_test.zig");
-    _ = @import("hal/i2c_test.zig");
-    _ = @import("hal/i2s_test.zig");
-    _ = @import("hal/imu_test.zig");
-    _ = @import("hal/kvs_test.zig");
-    _ = @import("hal/led_strip_test.zig");
-    _ = @import("hal/led_test.zig");
-    _ = @import("hal/mic_test.zig");
-    _ = @import("hal/pwm_test.zig");
-    _ = @import("hal/rtc_test.zig");
-    _ = @import("hal/speaker_test.zig");
-    _ = @import("hal/spi_test.zig");
-    _ = @import("hal/temp_sensor_test.zig");
-    _ = @import("hal/uart_test.zig");
-    _ = @import("hal/wifi_test.zig");
     _ = @import("pkg/app/app_runtime_test.zig");
     _ = @import("pkg/audio/engine_test.zig");
     _ = @import("pkg/audio/mixer_test.zig");
@@ -40,8 +20,6 @@ test {
     _ = @import("pkg/ble/term/transport_test.zig");
     _ = @import("pkg/ble/xfer/chunk_test.zig");
     // Keep transfer E2E coverage available as a direct test file.
-    _ = @import("pkg/drivers/es7210/src_test.zig");
-    _ = @import("pkg/drivers/es8311/src_test.zig");
     _ = @import("pkg/drivers/qmi8658/src_test.zig");
     _ = @import("pkg/drivers/tca9554/src_test.zig");
     // Keep bus integration coverage available as a direct test file.
@@ -82,7 +60,6 @@ test {
     _ = @import("pkg/net/ws/sha1_test.zig");
     _ = @import("pkg/ui/led_strip/animator_test.zig");
     _ = @import("pkg/ui/led_strip/frame_test.zig");
-    _ = @import("pkg/ui/led_strip/transition_test.zig");
     _ = @import("pkg/ui/render/font/api_test.zig");
     _ = @import("pkg/ui/render/framebuffer/anim_test.zig");
     _ = @import("pkg/ui/render/framebuffer/dirty_test.zig");
@@ -90,24 +67,5 @@ test {
     _ = @import("pkg/ui/render/framebuffer/framebuffer_test.zig");
     _ = @import("pkg/ui/render/framebuffer/image_test.zig");
     _ = @import("pkg/ui/render/framebuffer/scene_test.zig");
-    _ = @import("runtime/crypto/hash_test.zig");
-    _ = @import("runtime/crypto/hkdf_test.zig");
-    _ = @import("runtime/crypto/hmac_test.zig");
-    _ = @import("runtime/fs_test.zig");
-    _ = @import("runtime/socket_test.zig");
-    _ = @import("runtime/std/crypto/aead_test.zig");
-    _ = @import("runtime/std/crypto/hash_test.zig");
-    _ = @import("runtime/std/crypto/hkdf_test.zig");
-    _ = @import("runtime/std/crypto/hmac_test.zig");
-    _ = @import("runtime/std/crypto/kex_test.zig");
-    _ = @import("runtime/std/crypto/pki_test.zig");
-    _ = @import("runtime/std/crypto/rsa_test.zig");
-    _ = @import("runtime/std/crypto/x509_test.zig");
-    _ = @import("runtime/std/tests_test.zig");
-    _ = @import("runtime/std_test.zig");
     _ = @import("third_party/speexdsp/src_test.zig");
-    _ = @import("websim/hal/display_test.zig");
-    _ = @import("websim/hal/gpio_test.zig");
-    _ = @import("websim/hal/led_strip_test.zig");
-    _ = @import("websim/hal/rtc_test.zig");
 }

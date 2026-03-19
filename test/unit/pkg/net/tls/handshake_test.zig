@@ -5,6 +5,13 @@ const Std = embed.runtime.std;
 const handshake = embed.pkg.net.tls.handshake;
 const tls_common = embed.pkg.net.tls.common;
 
+const RawRng = @typeInfo(@TypeOf(@as(Std.Rng, undefined).impl)).pointer.child;
+var hs_raw_rng: RawRng = .{};
+
+fn stdRng() Std.Rng {
+    return Std.Rng.init(&hs_raw_rng);
+}
+
 test "HandshakeHeader parse and serialize" {
     const header = handshake.HandshakeHeader{
         .msg_type = .client_hello,
@@ -85,7 +92,7 @@ test "ClientHandshake init with Conn" {
     var conn = MockConn{};
     const Hs = handshake.ClientHandshake(MockConn, Runtime);
 
-    const hs = try Hs.init(&conn, "example.com", std.testing.allocator, false, Runtime.Rng.init());
+    const hs = try Hs.init(&conn, "example.com", std.testing.allocator, false, stdRng());
 
     try std.testing.expectEqualStrings("example.com", hs.hostname);
     try std.testing.expect(hs.state == .initial);
@@ -193,7 +200,7 @@ test "TLS 1.2 PRF large output" {
 test "KeyExchange X25519 generate and public key" {
     const Runtime = Std;
 
-    var kx = try handshake.KeyExchange(Runtime).generate(.x25519, Runtime.Rng.init());
+    var kx = try handshake.KeyExchange(Runtime).generate(.x25519, stdRng());
     const pub_key = kx.publicKey();
     try std.testing.expectEqual(@as(usize, 32), pub_key.len);
 
@@ -206,15 +213,15 @@ test "KeyExchange unsupported group" {
 
     try std.testing.expectError(
         error.UnsupportedGroup,
-        handshake.KeyExchange(Runtime).generate(.x448, Runtime.Rng.init()),
+        handshake.KeyExchange(Runtime).generate(.x448, stdRng()),
     );
 }
 
 test "X25519 shared secret computation" {
     const Runtime = Std;
 
-    var kx_a = try handshake.KeyExchange(Runtime).generate(.x25519, Runtime.Rng.init());
-    var kx_b = try handshake.KeyExchange(Runtime).generate(.x25519, Runtime.Rng.init());
+    var kx_a = try handshake.KeyExchange(Runtime).generate(.x25519, stdRng());
+    var kx_b = try handshake.KeyExchange(Runtime).generate(.x25519, stdRng());
 
     const shared_a = try kx_a.computeSharedSecret(kx_b.publicKey());
     const shared_b = try kx_b.computeSharedSecret(kx_a.publicKey());
@@ -225,7 +232,7 @@ test "X25519 shared secret computation" {
 test "X25519 invalid public key length" {
     const Runtime = Std;
 
-    var kx = try handshake.KeyExchange(Runtime).generate(.x25519, Runtime.Rng.init());
+    var kx = try handshake.KeyExchange(Runtime).generate(.x25519, stdRng());
     const short_key: [16]u8 = [_]u8{0} ** 16;
     try std.testing.expectError(error.InvalidPublicKey, kx.computeSharedSecret(&short_key));
 }
@@ -246,7 +253,7 @@ test "ClientHandshake init fills client_random" {
     };
 
     var conn = MockConn2{};
-    const hs = try handshake.ClientHandshake(MockConn2, Runtime).init(&conn, "test.com", std.testing.allocator, false, Runtime.Rng.init());
+    const hs = try handshake.ClientHandshake(MockConn2, Runtime).init(&conn, "test.com", std.testing.allocator, false, stdRng());
 
     const all_zero = std.mem.allEqual(u8, &hs.client_random, 0);
     try std.testing.expect(!all_zero);
@@ -268,7 +275,7 @@ test "ClientHandshake initial state" {
     };
 
     var conn = MockConn3{};
-    const hs = try handshake.ClientHandshake(MockConn3, Runtime).init(&conn, "host.example.com", std.testing.allocator, false, Runtime.Rng.init());
+    const hs = try handshake.ClientHandshake(MockConn3, Runtime).init(&conn, "host.example.com", std.testing.allocator, false, stdRng());
 
     try std.testing.expectEqual(handshake.HandshakeState.initial, hs.state);
     try std.testing.expectEqual(tls_common.ProtocolVersion.tls_1_3, hs.version);

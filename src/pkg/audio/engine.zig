@@ -94,6 +94,7 @@ pub const Processor = struct {
 pub fn Engine(comptime Runtime: type) type {
     comptime _ = embed.runtime.is(Runtime);
 
+    const RawMutex = @typeInfo(@TypeOf(@as(Runtime.Mutex, undefined).impl)).pointer.child;
     const MixerType = mixer_mod.Mixer(Runtime);
     const InputBuf = obuf_mod.OverrideBuffer(InputFrame, Runtime);
     const OutputBuf = obuf_mod.OverrideBuffer(i16, Runtime);
@@ -132,6 +133,7 @@ pub fn Engine(comptime Runtime: type) type {
         beamformer: ?Beamformer,
         processor: ?Processor,
 
+        raw_mixer_mutex: *RawMutex,
         mixer: MixerType,
 
         input_queue: InputBuf,
@@ -145,8 +147,6 @@ pub fn Engine(comptime Runtime: type) type {
         capture_thread: ?Runtime.Thread,
         speaker_thread: ?Runtime.Thread,
 
-        // -- lifecycle -------------------------------------------------------
-
         pub fn init(allocator: Allocator, config: Config, mutex: Runtime.Mutex, time: Runtime.Time) !Self {
             const input_storage = try allocator.alloc(InputFrame, config.input_queue_frames);
             errdefer allocator.free(input_storage);
@@ -157,6 +157,10 @@ pub fn Engine(comptime Runtime: type) type {
             const speaker_storage = try allocator.alloc(i16, config.speaker_ring_capacity);
             errdefer allocator.free(speaker_storage);
 
+            const raw_mixer_mu = try allocator.create(RawMutex);
+            errdefer allocator.destroy(raw_mixer_mu);
+            raw_mixer_mu.* = RawMutex.init();
+
             return .{
                 .allocator = allocator,
                 .config = config,
@@ -165,9 +169,10 @@ pub fn Engine(comptime Runtime: type) type {
                 .time = time,
                 .beamformer = null,
                 .processor = null,
+                .raw_mixer_mutex = raw_mixer_mu,
                 .mixer = MixerType.init(allocator, .{
                     .output = .{ .rate = config.sample_rate, .channels = .mono },
-                }, Runtime.Mutex.init()),
+                }, raw_mixer_mu),
                 .input_queue = InputBuf.init(input_storage),
                 .output_queue = OutputBuf.init(output_storage),
                 .speaker_ring = SpeakerBuf.init(speaker_storage),
@@ -190,6 +195,7 @@ pub fn Engine(comptime Runtime: type) type {
             self.allocator.free(self.output_storage);
             self.allocator.free(self.speaker_storage);
             self.mixer.deinit();
+            self.allocator.destroy(self.raw_mixer_mutex);
             self.mutex.deinit();
         }
 

@@ -13,7 +13,6 @@ pub const VerifyError = error{
 
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (std.mem.Allocator) anyerror!Impl, &Impl.init);
         _ = @as(*const fn (*Impl) void, &Impl.deinit);
         _ = @as(
             *const fn (*Impl, []const []const u8, ?[]const u8, i64) VerifyError!void,
@@ -23,20 +22,21 @@ pub fn Make(comptime Impl: type) type {
 
     return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        impl: Impl,
+        const Self = @This();
 
-        pub fn init(allocator: std.mem.Allocator) !@This() {
-            return .{ .impl = try Impl.init(allocator) };
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn deinit(self: *@This()) void {
+        pub fn deinit(self: *Self) void {
             self.impl.deinit();
+            self.impl = undefined;
         }
 
         pub fn verifyChain(
-            self: *@This(),
+            self: Self,
             chain: []const []const u8,
             hostname: ?[]const u8,
             now_sec: i64,
@@ -46,11 +46,7 @@ pub fn Make(comptime Impl: type) type {
     };
 }
 
-pub fn is(comptime T: type) type {
-    comptime {
-        if (!@hasDecl(T, "seal") or @TypeOf(T.seal) != Seal) {
-            @compileError("Impl must have pub const seal: x509.Seal — use x509.Make(Backend) to construct");
-        }
-    }
-    return T;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

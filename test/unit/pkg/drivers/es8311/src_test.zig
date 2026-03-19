@@ -1,7 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
 const embed = @import("embed");
-const hal = embed.hal;
 const es8311 = embed.pkg.drivers.es8311;
 
 // ============================================================================
@@ -11,14 +10,14 @@ const es8311 = embed.pkg.drivers.es8311;
 const MockI2c = struct {
     registers: [256]u8 = [_]u8{0} ** 256,
 
-    pub fn writeRead(self: *MockI2c, _: u7, write_buf: []const u8, read_buf: []u8) hal.i2c.Error!void {
+    pub fn writeRead(self: *MockI2c, _: u7, write_buf: []const u8, read_buf: []u8) !void {
         if (write_buf.len > 0 and read_buf.len > 0) {
             const reg = write_buf[0];
             read_buf[0] = self.registers[reg];
         }
     }
 
-    pub fn write(self: *MockI2c, _: u7, buf: []const u8) hal.i2c.Error!void {
+    pub fn write(self: *MockI2c, _: u7, buf: []const u8) !void {
         if (buf.len >= 2) {
             const reg = buf[0];
             self.registers[reg] = buf[1];
@@ -26,14 +25,9 @@ const MockI2c = struct {
     }
 };
 
-const MockI2cSpec = struct {
-    pub const Driver = MockI2c;
-    pub const meta = .{ .id = "i2c.mock-es8311" };
-};
-
 test "Es8311 basic operations" {
     var mock = MockI2c{};
-    var codec = es8311.Es8311(MockI2cSpec).init(&mock, .{ .address = @intFromEnum(es8311.Address.ad0_low) });
+    var codec = es8311.Es8311(MockI2c).init(&mock, .{ .address = @intFromEnum(es8311.Address.ad0_low) });
 
     try codec.open();
     try std.testing.expect(codec.is_open);

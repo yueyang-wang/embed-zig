@@ -3,50 +3,43 @@
 const Seal = struct {};
 
 /// Construct a sealed Notify wrapper from a backend Impl type.
-/// Impl must provide: init, deinit, signal, wait, timedWait.
+/// Impl must provide: signal, wait, timedWait.
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn () Impl, &Impl.init);
-        _ = @as(*const fn (*Impl) void, &Impl.deinit);
         _ = @as(*const fn (*Impl) void, &Impl.signal);
         _ = @as(*const fn (*Impl) void, &Impl.wait);
         _ = @as(*const fn (*Impl, u64) bool, &Impl.timedWait);
     }
 
-    const NotifyType = struct {
-        impl: Impl,
+    return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn init() @This() {
-            return .{ .impl = Impl.init() };
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn deinit(self: *@This()) void {
-            self.impl.deinit();
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
         }
 
-        pub fn signal(self: *@This()) void {
+        pub fn signal(self: Self) void {
             self.impl.signal();
         }
 
-        pub fn wait(self: *@This()) void {
+        pub fn wait(self: Self) void {
             self.impl.wait();
         }
 
-        pub fn timedWait(self: *@This(), timeout_ns: u64) bool {
+        pub fn timedWait(self: Self, timeout_ns: u64) bool {
             return self.impl.timedWait(timeout_ns);
         }
     };
-    return is(NotifyType);
 }
 
-/// Validate that Impl satisfies the sealed Notify contract.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: notify.Seal — use notify.Make(Backend) to construct");
-        }
-    }
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

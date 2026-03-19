@@ -9,29 +9,34 @@ pub const KeyPair = struct {
 
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn ([32]u8) anyerror!KeyPair, &Impl.generateDeterministic);
-        _ = @as(*const fn ([32]u8, [32]u8) anyerror![32]u8, &Impl.scalarmult);
+        _ = @as(*const fn (*Impl, [32]u8) anyerror!KeyPair, &Impl.generateDeterministic);
+        _ = @as(*const fn (*Impl, [32]u8, [32]u8) anyerror![32]u8, &Impl.scalarmult);
     }
 
     return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn generateDeterministic(seed: [32]u8) !KeyPair {
-            return Impl.generateDeterministic(seed);
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn scalarmult(secret: [32]u8, public: [32]u8) ![32]u8 {
-            return Impl.scalarmult(secret, public);
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
+        }
+
+        pub fn generateDeterministic(self: Self, seed: [32]u8) !KeyPair {
+            return self.impl.generateDeterministic(seed);
+        }
+
+        pub fn scalarmult(self: Self, secret: [32]u8, public: [32]u8) ![32]u8 {
+            return self.impl.scalarmult(secret, public);
         }
     };
 }
 
-pub fn is(comptime T: type) type {
-    comptime {
-        if (!@hasDecl(T, "seal") or @TypeOf(T.seal) != Seal) {
-            @compileError("Impl must have pub const seal: x25519.Seal — use x25519.Make(Backend) to construct");
-        }
-    }
-    return T;
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

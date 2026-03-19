@@ -1,20 +1,20 @@
-//! WiFi HAL wrapper (event-driven).
+//! HAL WiFi Contract
+//!
+//! WiFi network interface: connection management, status queries,
+//! scanning, power/radio config, AP mode, and L2 frame IO for netstack.
+//!
+//! Impl must provide all methods listed in the Make() comptime checks.
 
-const std = @import("std");
-const hal_marker = @import("marker.zig");
+const serial = @import("serial.zig");
 
-pub const Error = error{
-    Busy,
-    InvalidConfig,
-    AuthFailed,
-    Timeout,
-    WifiError,
-};
+pub const PollFd = serial.PollFd;
+pub const ReadError = serial.ReadError;
+pub const WriteError = serial.WriteError;
 
 pub const IpAddress = [4]u8;
 pub const Mac = [6]u8;
 
-pub const State = enum {
+pub const Status = enum {
     disconnected,
     connecting,
     connected,
@@ -64,13 +64,9 @@ pub const ScanType = enum {
     passive,
 };
 
-pub const ScanDoneInfo = struct {
-    success: bool,
-};
-
 pub const ConnectConfig = struct {
     ssid: []const u8,
-    password: []const u8,
+    password: []const u8 = "",
     channel_hint: u8 = 0,
     bssid: ?Mac = null,
     auth_mode: ?AuthMode = null,
@@ -104,40 +100,18 @@ pub const PowerSaveMode = enum {
     max_modem,
 };
 
-pub const RoamingConfig = struct {
-    rm_enabled: bool = false,
-    btm_enabled: bool = false,
-    ft_enabled: bool = false,
-    mbo_enabled: bool = false,
-};
-
 pub const ApConfig = struct {
     ssid: []const u8,
-    password: []const u8,
+    password: []const u8 = "",
     channel: u8 = 1,
     auth_mode: AuthMode = .wpa2_psk,
     max_connections: u8 = 4,
     hidden: bool = false,
-    beacon_interval: u16 = 100,
 };
 
 pub const StaInfo = struct {
     mac: Mac,
     rssi: i8,
-    aid: u16,
-};
-
-pub const Protocol = packed struct {
-    b: bool = true,
-    g: bool = true,
-    n: bool = true,
-    lr: bool = false,
-    _padding: u4 = 0,
-};
-
-pub const Bandwidth = enum {
-    bw_20,
-    bw_40,
 };
 
 pub const WifiEvent = union(enum) {
@@ -145,255 +119,150 @@ pub const WifiEvent = union(enum) {
     disconnected: DisconnectReason,
     connection_failed: FailReason,
     scan_result: ApInfo,
-    scan_done: ScanDoneInfo,
+    scan_done: bool,
     rssi_low: i8,
     ap_sta_connected: StaInfo,
     ap_sta_disconnected: StaInfo,
 };
 
-pub const Status = struct {
-    state: State,
-    ip: ?IpAddress,
-    rssi: ?i8,
-    ssid: ?[]const u8,
-    bssid: ?Mac = null,
-    channel: ?u8 = null,
-    phy_mode: ?PhyMode = null,
+pub const ConnectError = error{
+    InvalidConfig,
+    AuthFailed,
+    Timeout,
+    Unexpected,
 };
 
-pub fn is(comptime T: type) bool {
-    if (@typeInfo(T) != .@"struct") return false;
-    if (!@hasDecl(T, "_hal_marker")) return false;
-    const marker = T._hal_marker;
-    if (@TypeOf(marker) != hal_marker.Marker) return false;
-    return marker.kind == .wifi;
-}
+pub const ScanError = error{
+    Busy,
+    Unexpected,
+};
 
-/// Required driver methods:
-/// - connect(*Driver, []const u8, []const u8) void
-/// - disconnect(*Driver) void
-/// - isConnected(*const Driver) bool
-/// - pollEvent(*Driver) ?WifiEvent
-pub fn from(comptime spec: type) type {
-    const BaseDriver = comptime switch (@typeInfo(spec.Driver)) {
-        .pointer => |p| p.child,
-        else => spec.Driver,
-    };
+pub const ApError = error{
+    InvalidConfig,
+    Unexpected,
+};
 
+const Seal = struct {};
+
+pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (*BaseDriver, []const u8, []const u8) void, &BaseDriver.connect);
-        _ = @as(*const fn (*BaseDriver) void, &BaseDriver.disconnect);
-        _ = @as(*const fn (*const BaseDriver) bool, &BaseDriver.isConnected);
-        _ = @as(*const fn (*BaseDriver) ?WifiEvent, &BaseDriver.pollEvent);
+        // connection
+        _ = @as(*const fn (*Impl, ConnectConfig) ConnectError!void, &Impl.connect);
+        _ = @as(*const fn (*Impl) void, &Impl.disconnect);
+        _ = @as(*const fn (*const Impl) Status, &Impl.status);
 
-        _ = @as(*const fn (*BaseDriver, ConnectConfig) void, &BaseDriver.connectWithConfig);
-        _ = @as(*const fn (*BaseDriver) void, &BaseDriver.reconnect);
-        _ = @as(*const fn (*const BaseDriver) ?i8, &BaseDriver.getRssi);
-        _ = @as(*const fn (*const BaseDriver) ?Mac, &BaseDriver.getMac);
-        _ = @as(*const fn (*const BaseDriver) ?u8, &BaseDriver.getChannel);
-        _ = @as(*const fn (*const BaseDriver) ?[]const u8, &BaseDriver.getSsid);
-        _ = @as(*const fn (*const BaseDriver) ?Mac, &BaseDriver.getBssid);
-        _ = @as(*const fn (*const BaseDriver) ?PhyMode, &BaseDriver.getPhyMode);
+        // event
+        _ = @as(*const fn (*Impl, ?*anyopaque, *const fn (?*anyopaque, WifiEvent) void) void, &Impl.addEventHook);
 
-        _ = @as(*const fn (*BaseDriver, ScanConfig) Error!void, &BaseDriver.scanStart);
+        // info
+        _ = @as(*const fn (*const Impl) ?i8, &Impl.getRssi);
+        _ = @as(*const fn (*const Impl) ?Mac, &Impl.getMac);
+        _ = @as(*const fn (*const Impl) ?u8, &Impl.getChannel);
 
-        _ = @as(*const fn (*BaseDriver, PowerSaveMode) void, &BaseDriver.setPowerSave);
-        _ = @as(*const fn (*const BaseDriver) PowerSaveMode, &BaseDriver.getPowerSave);
+        // scan
+        _ = @as(*const fn (*Impl, ScanConfig) ScanError!void, &Impl.scanStart);
 
-        _ = @as(*const fn (*BaseDriver, RoamingConfig) void, &BaseDriver.setRoaming);
-        _ = @as(*const fn (*BaseDriver, i8) void, &BaseDriver.setRssiThreshold);
-        _ = @as(*const fn (*BaseDriver, i8) void, &BaseDriver.setTxPower);
-        _ = @as(*const fn (*const BaseDriver) ?i8, &BaseDriver.getTxPower);
+        // power
+        _ = @as(*const fn (*Impl, PowerSaveMode) void, &Impl.setPowerSave);
+        _ = @as(*const fn (*Impl, i8) void, &Impl.setTxPower);
 
-        _ = @as(*const fn (*BaseDriver, ApConfig) Error!void, &BaseDriver.startAp);
-        _ = @as(*const fn (*BaseDriver) void, &BaseDriver.stopAp);
-        _ = @as(*const fn (*const BaseDriver) bool, &BaseDriver.isApRunning);
-        _ = @as(*const fn (*const BaseDriver) []const StaInfo, &BaseDriver.getStaList);
-        _ = @as(*const fn (*BaseDriver, Mac) void, &BaseDriver.deauthSta);
+        // AP
+        _ = @as(*const fn (*Impl, ApConfig) ApError!void, &Impl.startAp);
+        _ = @as(*const fn (*Impl) void, &Impl.stopAp);
 
-        _ = @as(*const fn (*BaseDriver, Protocol) void, &BaseDriver.setProtocol);
-        _ = @as(*const fn (*BaseDriver, Bandwidth) void, &BaseDriver.setBandwidth);
-        _ = @as(*const fn (*BaseDriver, [2]u8) void, &BaseDriver.setCountryCode);
-        _ = @as(*const fn (*const BaseDriver) [2]u8, &BaseDriver.getCountryCode);
-
-        _ = @as([]const u8, spec.meta.id);
+        // L2 IO
+        _ = @as(*const fn (*Impl, []u8) ReadError!usize, &Impl.read);
+        _ = @as(*const fn (*Impl, []const u8) WriteError!usize, &Impl.write);
+        _ = @as(*const fn (*Impl, PollFd, i32) PollFd, &Impl.poll);
     }
 
-    const Driver = spec.Driver;
     return struct {
+        pub const seal: Seal = .{};
+        driver: *Impl,
+
         const Self = @This();
 
-        pub const _hal_marker: hal_marker.Marker = .{
-            .kind = .wifi,
-            .id = spec.meta.id,
-        };
-        pub const DriverType = Driver;
-        pub const meta = spec.meta;
-
-        driver: *Driver,
-        state: State = .disconnected,
-        current_ssid: ?[]const u8 = null,
-
-        pub fn init(driver: *Driver) Self {
+        pub fn init(driver: *Impl) Self {
             return .{ .driver = driver };
         }
 
-        pub fn connect(self: *Self, ssid: []const u8, password: []const u8) void {
-            self.state = .connecting;
-            self.current_ssid = ssid;
-            self.driver.connect(ssid, password);
+        pub fn deinit(self: *Self) void {
+            self.driver = undefined;
         }
 
-        pub fn connectWithConfig(self: *Self, config: ConnectConfig) void {
-            self.state = .connecting;
-            self.current_ssid = config.ssid;
-            self.driver.connectWithConfig(config);
+        // -- connection --
+
+        pub fn connect(self: Self, config: ConnectConfig) ConnectError!void {
+            return self.driver.connect(config);
         }
 
-        pub fn disconnect(self: *Self) void {
+        pub fn disconnect(self: Self) void {
             self.driver.disconnect();
-            self.state = .disconnected;
-            self.current_ssid = null;
         }
 
-        pub fn reconnect(self: *Self) void {
-            self.state = .connecting;
-            self.driver.reconnect();
+        pub fn status(self: Self) Status {
+            return self.driver.status();
         }
 
-        pub fn pollEvent(self: *Self) ?WifiEvent {
-            const event = self.driver.pollEvent() orelse return null;
-            switch (event) {
-                .connected => self.state = .connected,
-                .disconnected => self.state = .disconnected,
-                .connection_failed => self.state = .failed,
-                else => {},
-            }
-            return event;
-        }
+        // -- info --
 
-        pub fn isConnected(self: *const Self) bool {
-            return self.driver.isConnected();
-        }
-
-        pub fn getRssi(self: *const Self) ?i8 {
+        pub fn getRssi(self: Self) ?i8 {
             return self.driver.getRssi();
         }
 
-        pub fn getMac(self: *const Self) ?Mac {
+        pub fn getMac(self: Self) ?Mac {
             return self.driver.getMac();
         }
 
-        pub fn getChannel(self: *const Self) ?u8 {
+        pub fn getChannel(self: Self) ?u8 {
             return self.driver.getChannel();
         }
 
-        pub fn getSsid(self: *const Self) ?[]const u8 {
-            return self.driver.getSsid();
-        }
+        // -- scan --
 
-        pub fn getBssid(self: *const Self) ?Mac {
-            return self.driver.getBssid();
-        }
-
-        pub fn getPhyMode(self: *const Self) ?PhyMode {
-            return self.driver.getPhyMode();
-        }
-
-        pub fn getState(self: *const Self) State {
-            return self.state;
-        }
-
-        pub fn getStatus(self: *const Self) Status {
-            return .{
-                .state = self.state,
-                .ip = null,
-                .rssi = self.getRssi(),
-                .ssid = self.getSsid(),
-                .bssid = self.getBssid(),
-                .channel = self.getChannel(),
-                .phy_mode = self.getPhyMode(),
-            };
-        }
-
-        pub fn scanStart(self: *Self, config: ScanConfig) Error!void {
+        pub fn scanStart(self: Self, config: ScanConfig) ScanError!void {
             return self.driver.scanStart(config);
         }
 
-        pub fn setPowerSave(self: *Self, mode: PowerSaveMode) void {
+        // -- power --
+
+        pub fn setPowerSave(self: Self, mode: PowerSaveMode) void {
             self.driver.setPowerSave(mode);
         }
 
-        pub fn getPowerSave(self: *const Self) PowerSaveMode {
-            return self.driver.getPowerSave();
-        }
-
-        pub fn setRoaming(self: *Self, config: RoamingConfig) void {
-            self.driver.setRoaming(config);
-        }
-
-        pub fn setRssiThreshold(self: *Self, rssi: i8) void {
-            self.driver.setRssiThreshold(rssi);
-        }
-
-        pub fn setTxPower(self: *Self, power: i8) void {
+        pub fn setTxPower(self: Self, power: i8) void {
             self.driver.setTxPower(power);
         }
 
-        pub fn getTxPower(self: *const Self) ?i8 {
-            return self.driver.getTxPower();
+        // -- AP --
+
+        pub fn startAp(self: Self, config: ApConfig) ApError!void {
+            return self.driver.startAp(config);
         }
 
-        pub fn startAp(self: *Self, config: ApConfig) Error!void {
-            try self.driver.startAp(config);
-            self.state = .ap_running;
-        }
-
-        pub fn stopAp(self: *Self) void {
+        pub fn stopAp(self: Self) void {
             self.driver.stopAp();
-            self.state = .disconnected;
         }
 
-        pub fn isApRunning(self: *const Self) bool {
-            return self.driver.isApRunning();
+        pub fn addEventHook(self: Self, ctx: ?*anyopaque, call: *const fn (?*anyopaque, WifiEvent) void) void {
+            self.driver.addEventHook(ctx, call);
         }
 
-        pub fn getStaList(self: *const Self) []const StaInfo {
-            return self.driver.getStaList();
+        // -- L2 IO --
+        pub fn read(self: Self, buf: []u8) ReadError!usize {
+            return self.driver.read(buf);
         }
 
-        pub fn deauthSta(self: *Self, mac: Mac) void {
-            self.driver.deauthSta(mac);
+        pub fn write(self: Self, data: []const u8) WriteError!usize {
+            return self.driver.write(data);
         }
 
-        pub fn setProtocol(self: *Self, proto: Protocol) void {
-            self.driver.setProtocol(proto);
-        }
-
-        pub fn setBandwidth(self: *Self, bw: Bandwidth) void {
-            self.driver.setBandwidth(bw);
-        }
-
-        pub fn setCountryCode(self: *Self, code: [2]u8) void {
-            self.driver.setCountryCode(code);
-        }
-
-        pub fn getCountryCode(self: *const Self) [2]u8 {
-            return self.driver.getCountryCode();
-        }
-
-        pub fn getSignalQuality(self: *const Self) ?u8 {
-            const rssi = self.getRssi() orelse return null;
-            if (rssi >= -50) return 100;
-            if (rssi <= -100) return 0;
-            const quality: i16 = @as(i16, rssi) + 100;
-            return @intCast(@as(u16, @intCast(quality)) * 2);
-        }
-
-        pub fn formatIp(ip: IpAddress) [15]u8 {
-            var buf: [15]u8 = [_]u8{0} ** 15;
-            _ = std.fmt.bufPrint(&buf, "{}.{}.{}.{}", .{ ip[0], ip[1], ip[2], ip[3] }) catch {};
-            return buf;
+        pub fn poll(self: Self, request: PollFd, timeout_ms: i32) PollFd {
+            return self.driver.poll(request, timeout_ms);
         }
     };
+}
+
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

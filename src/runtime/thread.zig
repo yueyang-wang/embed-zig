@@ -19,9 +19,6 @@ const Seal = struct {};
 ///   pub fn spawn(SpawnConfig, TaskFn, ?*anyopaque) anyerror!Impl
 ///   pub fn join(*Impl) void
 ///   pub fn detach(*Impl) void
-///
-/// The returned type is both the factory and instance type: spawn returns @This(),
-/// so callers can store the result and call join/detach on it.
 pub fn Make(comptime Impl: type) type {
     comptime {
         _ = @as(*const fn (SpawnConfig, TaskFn, ?*anyopaque) anyerror!Impl, &Impl.spawn);
@@ -29,32 +26,35 @@ pub fn Make(comptime Impl: type) type {
         _ = @as(*const fn (*Impl) void, &Impl.detach);
     }
 
-    const ThreadType = struct {
-        impl: Impl,
+    return struct {
         pub const seal: Seal = .{};
+        driver: *Impl,
 
-        pub fn spawn(config: SpawnConfig, task: TaskFn, ctx: ?*anyopaque) anyerror!@This() {
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .driver = driver };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.driver = undefined;
+        }
+
+        pub fn spawn(config: SpawnConfig, task: TaskFn, ctx: ?*anyopaque) anyerror!Self {
             return .{ .impl = try Impl.spawn(config, task, ctx) };
         }
 
-        pub fn join(self: *@This()) void {
+        pub fn join(self: *Self) void {
             self.impl.join();
         }
 
-        pub fn detach(self: *@This()) void {
+        pub fn detach(self: *Self) void {
             self.impl.detach();
         }
     };
-    return is(ThreadType);
 }
 
-/// Validate that Impl satisfies the Thread contract and return it.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: thread.Seal — use thread.Make(Backend) to construct");
-        }
-    }
-
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

@@ -33,6 +33,9 @@ pub fn Client(comptime Conn: type, comptime Runtime: type) type {
         _ = runtime_suite.is(Runtime);
     }
 
+    const RawMutex = @typeInfo(@TypeOf(@as(Runtime.Mutex, undefined).impl)).pointer.child;
+    const RawRng = @typeInfo(@TypeOf(@as(Runtime.Rng, undefined).impl)).pointer.child;
+
     return struct {
         config: Config,
         conn: *Conn,
@@ -40,6 +43,9 @@ pub fn Client(comptime Conn: type, comptime Runtime: type) type {
         connected: bool,
         received_close_notify: bool,
 
+        raw_write_mutex: *RawMutex,
+        raw_read_mutex: *RawMutex,
+        raw_rng: *RawRng,
         write_mutex: Runtime.Mutex,
         read_mutex: Runtime.Mutex,
 
@@ -61,6 +67,18 @@ pub fn Client(comptime Conn: type, comptime Runtime: type) type {
             const write_buffer = try config.allocator.alloc(u8, common.MAX_CIPHERTEXT_LEN + 256);
             errdefer config.allocator.free(write_buffer);
 
+            const raw_wmu = try config.allocator.create(RawMutex);
+            errdefer config.allocator.destroy(raw_wmu);
+            raw_wmu.* = RawMutex.init();
+
+            const raw_rmu = try config.allocator.create(RawMutex);
+            errdefer config.allocator.destroy(raw_rmu);
+            raw_rmu.* = RawMutex.init();
+
+            const raw_rng = try config.allocator.create(RawRng);
+            errdefer config.allocator.destroy(raw_rng);
+            raw_rng.* = .{};
+
             return Self{
                 .config = config,
                 .conn = conn,
@@ -69,12 +87,15 @@ pub fn Client(comptime Conn: type, comptime Runtime: type) type {
                     config.hostname,
                     config.allocator,
                     config.skip_verify,
-                    Runtime.Rng.init(),
+                    Runtime.Rng.init(raw_rng),
                 ),
                 .connected = false,
                 .received_close_notify = false,
-                .write_mutex = Runtime.Mutex.init(),
-                .read_mutex = Runtime.Mutex.init(),
+                .raw_write_mutex = raw_wmu,
+                .raw_read_mutex = raw_rmu,
+                .raw_rng = raw_rng,
+                .write_mutex = Runtime.Mutex.init(raw_wmu),
+                .read_mutex = Runtime.Mutex.init(raw_rmu),
                 .read_buffer = read_buffer,
                 .write_buffer = write_buffer,
             };
@@ -83,6 +104,9 @@ pub fn Client(comptime Conn: type, comptime Runtime: type) type {
         pub fn deinit(self: *Self) void {
             self.read_mutex.deinit();
             self.write_mutex.deinit();
+            self.config.allocator.destroy(self.raw_rng);
+            self.config.allocator.destroy(self.raw_read_mutex);
+            self.config.allocator.destroy(self.raw_write_mutex);
             self.config.allocator.free(self.read_buffer);
             self.config.allocator.free(self.write_buffer);
         }

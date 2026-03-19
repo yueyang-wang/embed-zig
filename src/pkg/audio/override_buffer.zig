@@ -14,6 +14,9 @@ const embed = @import("../../mod.zig");
 pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
     comptime _ = embed.runtime.is(Runtime);
 
+    const RawMutex = @typeInfo(@TypeOf(@as(Runtime.Mutex, undefined).impl)).pointer.child;
+    const RawCondition = @typeInfo(@TypeOf(@as(Runtime.Condition, undefined).impl)).pointer.child;
+
     return struct {
         const Self = @This();
 
@@ -24,28 +27,28 @@ pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
         read_pos: usize = 0,
         len: usize = 0,
 
-        mutex: Runtime.Mutex,
-        cond: Runtime.Condition,
+        raw_mutex: RawMutex,
+        raw_cond: RawCondition,
         closed: bool = false,
 
         pub fn init(buf: []T) Self {
             return .{
                 .buf = buf,
                 .capacity = buf.len,
-                .mutex = Runtime.Mutex.init(),
-                .cond = Runtime.Condition.init(),
+                .raw_mutex = RawMutex.init(),
+                .raw_cond = RawCondition.init(),
             };
         }
 
         pub fn deinit(self: *Self) void {
-            self.cond.deinit();
-            self.mutex.deinit();
+            self.raw_cond.deinit();
+            self.raw_mutex.deinit();
         }
 
         /// Non-blocking write.  Overwrites oldest unread data when full.
         pub fn write(self: *Self, data: []const T) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
 
             for (data) |sample| {
                 self.buf[self.write_pos] = sample;
@@ -58,7 +61,7 @@ pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
                 }
             }
 
-            if (data.len > 0) self.cond.signal();
+            if (data.len > 0) self.raw_cond.signal();
         }
 
         /// Blocking read.  Waits until `out.len` elements are available, then
@@ -69,35 +72,31 @@ pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
         pub fn read(self: *Self, out: []T) usize {
             if (out.len == 0) return 0;
 
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
 
             while (self.len < out.len) {
                 if (self.closed) {
                     return self.drainLocked(out);
                 }
-                self.cond.wait(&self.mutex);
+                self.raw_cond.wait(&self.raw_mutex);
             }
 
             return self.copyOutLocked(out, out.len);
         }
 
-        /// Blocking read with timeout (nanoseconds).
-        /// Returns the number of elements actually read.  May be less than
-        /// `out.len` if the timeout fires before enough data arrives.
-        /// Returns 0 on timeout with no data, or when closed and drained.
         pub fn timedRead(self: *Self, out: []T, timeout_ns: u64) usize {
             if (out.len == 0) return 0;
 
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
 
             if (self.len >= out.len) {
                 return self.copyOutLocked(out, out.len);
             }
 
             if (!self.closed) {
-                _ = self.cond.timedWait(&self.mutex, timeout_ns);
+                _ = self.raw_cond.timedWait(&self.raw_mutex, timeout_ns);
             }
 
             if (self.closed) return self.drainLocked(out);
@@ -106,19 +105,16 @@ pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
             return self.copyOutLocked(out, n);
         }
 
-        /// Signal that no more data will be written.
-        /// Wakes all blocked readers so they can drain and return.
         pub fn close(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             self.closed = true;
-            self.cond.broadcast();
+            self.raw_cond.broadcast();
         }
 
-        /// Reset to empty, open state.
         pub fn reset(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             self.write_pos = 0;
             self.read_pos = 0;
             self.len = 0;
@@ -127,8 +123,8 @@ pub fn OverrideBuffer(comptime T: type, comptime Runtime: type) type {
 
         /// Number of elements available for reading (snapshot, may race).
         pub fn available(self: *Self) usize {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             return self.len;
         }
 

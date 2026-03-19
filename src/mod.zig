@@ -1,84 +1,55 @@
 pub const runtime = struct {
     pub const Make = @import("runtime/runtime.zig").Make;
     pub const is = @import("runtime/runtime.zig").is;
-    pub const std = @import("runtime/std.zig").Std;
 
-    pub const socket = struct {
-        pub const Make = @import("runtime/socket.zig").Make;
-        pub const Error = @import("runtime/socket.zig").Error;
-        pub const Ipv4Address = @import("runtime/socket.zig").Ipv4Address;
-        pub const parseIpv4 = @import("runtime/socket.zig").parseIpv4;
-        pub const RecvFromResult = @import("runtime/socket.zig").RecvFromResult;
-    };
-
-    pub const rng = struct {
-        pub const Error = @import("runtime/rng.zig").Error;
-    };
-
-    pub const thread = struct {
-        pub const SpawnConfig = @import("runtime/thread.zig").SpawnConfig;
-        pub const TaskFn = @import("runtime/thread.zig").TaskFn;
-    };
-
-    pub const system = struct {
-        pub const Error = @import("runtime/system.zig").Error;
-    };
-
-    pub const fs = struct {
-        pub const OpenMode = @import("runtime/fs.zig").OpenMode;
-        pub const Error = @import("runtime/fs.zig").Error;
-        pub const File = @import("runtime/fs.zig").File;
-    };
-
-    pub const channel_factory = struct {
-        pub const RecvResult = @import("runtime/channel_factory.zig").RecvResult;
-        pub const SendResult = @import("runtime/channel_factory.zig").SendResult;
-    };
-
-    pub const ota_backend = struct {
-        pub const Error = @import("runtime/ota_backend.zig").Error;
-        pub const State = @import("runtime/ota_backend.zig").State;
-    };
+    pub const channel_factory = @import("runtime/channel_factory.zig");
+    pub const fs = @import("runtime/fs.zig");
+    pub const log = @import("runtime/log.zig");
+    pub const ota_backend = @import("runtime/ota_backend.zig");
+    pub const rng = @import("runtime/rng.zig");
+    pub const netif = @import("runtime/netif.zig");
+    pub const tcpip = @import("runtime/tcpip.zig");
+    pub const system = @import("runtime/system.zig");
+    pub const thread = @import("runtime/thread.zig");
+    pub const time = @import("runtime/time.zig");
 
     pub const sync = struct {
-        pub const TimedWaitResult = @import("runtime/sync/condition.zig").TimedWaitResult;
+        pub const condition = @import("runtime/sync/condition.zig");
+        pub const mutex = @import("runtime/sync/mutex.zig");
+        pub const notify = @import("runtime/sync/notify.zig");
     };
 
     pub const crypto = struct {
+        pub const aead = @import("runtime/crypto/aead.zig");
+        pub const hash = @import("runtime/crypto/hash.zig");
+        pub const hkdf = @import("runtime/crypto/hkdf.zig");
+        pub const hmac = @import("runtime/crypto/hmac.zig");
+        pub const p256 = @import("runtime/crypto/p256.zig");
+        pub const pki = @import("runtime/crypto/pki.zig");
         pub const rsa = @import("runtime/crypto/rsa.zig");
-        pub const x25519 = @import("runtime/crypto/x25519.zig");
         pub const x509 = @import("runtime/crypto/x509.zig");
-        pub const HashType = rsa.HashType;
-        pub const DerKey = rsa.DerKey;
+        pub const x25519 = @import("runtime/crypto/x25519.zig");
     };
 
     pub const test_runners = struct {
-        pub const ChannelTestRunner = @import("runtime/channel_test_runner.zig").ChannelTestRunner;
+        pub const channel_factory = @import("runtime/channel_factory_test_runner.zig");
     };
 };
 
 pub const hal = struct {
-    pub const marker = @import("hal/marker.zig");
-    pub const board = @import("hal/board.zig");
-    pub const gpio = @import("hal/gpio.zig");
-    pub const adc = @import("hal/adc.zig");
-    pub const pwm = @import("hal/pwm.zig");
-    pub const i2c = @import("hal/i2c.zig");
-    pub const i2s = @import("hal/i2s.zig");
-    pub const spi = @import("hal/spi.zig");
-    pub const uart = @import("hal/uart.zig");
-    pub const wifi = @import("hal/wifi.zig");
-    pub const hci = @import("hal/hci.zig");
-    pub const kvs = @import("hal/kvs.zig");
-    pub const rtc = @import("hal/rtc.zig");
-    pub const led = @import("hal/led.zig");
-    pub const led_strip = @import("hal/led_strip.zig");
-    pub const display = @import("hal/display.zig");
-    pub const speaker = @import("hal/speaker.zig");
-    pub const mic = @import("hal/mic.zig");
     pub const audio_system = @import("hal/audio_system.zig");
-    pub const temp_sensor = @import("hal/temp_sensor.zig");
+    pub const ble_central = @import("hal/ble_central.zig");
+    pub const ble_peripheral = @import("hal/ble_peripheral.zig");
+    pub const button = @import("hal/button.zig");
+    pub const button_group = @import("hal/button_group.zig");
+    pub const display = @import("hal/display.zig");
     pub const imu = @import("hal/imu.zig");
+    pub const kvs = @import("hal/kvs.zig");
+    pub const led = @import("hal/led.zig");
+    pub const led_group = @import("hal/led_group.zig");
+    pub const modem = @import("hal/modem.zig");
+    pub const rtc = @import("hal/rtc.zig");
+    pub const wifi = @import("hal/wifi.zig");
 };
 
 pub const pkg = struct {
@@ -87,14 +58,6 @@ pub const pkg = struct {
         pub const mixer = @import("pkg/audio/mixer.zig");
         pub const override_buffer = @import("pkg/audio/override_buffer.zig");
         pub const resampler = @import("pkg/audio/resampler.zig");
-
-        pub const Engine = engine.Engine;
-        pub const Mixer = mixer.Mixer;
-        pub const Format = resampler.Format;
-        pub const Beamformer = engine.Beamformer;
-        pub const Processor = engine.Processor;
-        pub const PassthroughBeamformer = engine.PassthroughBeamformer;
-        pub const PassthroughProcessor = engine.PassthroughProcessor;
     };
 
     pub const ble = struct {
@@ -104,59 +67,35 @@ pub const pkg = struct {
         };
 
         pub const host = struct {
-            pub const host_mod = @import("pkg/ble/host/host.zig");
-            pub const Host = host_mod.Host;
+            pub const Host = @import("pkg/ble/host/host.zig").Host;
+            pub const AclCredits = @import("pkg/ble/host/host.zig").AclCredits;
+            pub const TxPacket = @import("pkg/ble/host/host.zig").TxPacket;
+            
             pub const hci = struct {
-                pub const hci = @import("pkg/ble/host/hci/hci.zig");
+                pub const PacketType = @import("pkg/ble/host/hci/hci.zig").PacketType;
+                pub const BdAddr = @import("pkg/ble/host/hci/hci.zig").BdAddr;
+                pub const AddrType = @import("pkg/ble/host/hci/hci.zig").AddrType;
+                pub const Status = @import("pkg/ble/host/hci/hci.zig").Status;
+                
                 pub const acl = @import("pkg/ble/host/hci/acl.zig");
                 pub const commands = @import("pkg/ble/host/hci/commands.zig");
                 pub const events = @import("pkg/ble/host/hci/events.zig");
             };
-            pub const att = struct {
-                pub const att = @import("pkg/ble/host/att/att.zig");
-            };
-            pub const gap = struct {
-                pub const gap = @import("pkg/ble/host/gap/gap.zig");
-            };
-            pub const l2cap = struct {
-                pub const l2cap = @import("pkg/ble/host/l2cap/l2cap.zig");
-            };
+            pub const att = @import("pkg/ble/host/att/att.zig");
+            pub const gap = @import("pkg/ble/host/gap/gap.zig");
+            pub const l2cap = @import("pkg/ble/host/l2cap/l2cap.zig");
         };
 
         pub const xfer = struct {
-            const api = @import("pkg/ble/xfer/api.zig");
             pub const chunk = @import("pkg/ble/xfer/chunk.zig");
             pub const read_x = @import("pkg/ble/xfer/read_x.zig");
             pub const write_x = @import("pkg/ble/xfer/write_x.zig");
-            pub const ReadX = api.ReadX;
-            pub const WriteX = api.WriteX;
-            pub const Header = chunk.Header;
-            pub const Bitmask = chunk.Bitmask;
-            pub const start_magic = chunk.start_magic;
-            pub const ack_signal = chunk.ack_signal;
-            pub const dataChunkSize = chunk.dataChunkSize;
-            pub const chunksNeeded = chunk.chunksNeeded;
         };
         pub const term = struct {
-            const api = @import("pkg/ble/term/api.zig");
+            pub const server = @import("pkg/ble/term/server.zig");
             pub const shell = @import("pkg/ble/term/shell.zig");
             pub const transport = @import("pkg/ble/term/transport.zig");
-            pub const Shell = shell.Shell;
-            pub const HandlerFn = shell.HandlerFn;
-            pub const Request = shell.Request;
-            pub const ResponseWriter = shell.ResponseWriter;
-            pub const CancellationToken = shell.CancellationToken;
-            pub const ParsedCommand = shell.ParsedCommand;
-            pub const parseRequest = shell.parseRequest;
-            pub const encodeResponse = shell.encodeResponse;
-            pub const GattTransport = transport.GattTransport;
-            pub const Server = api.Server;
         };
-
-        pub const hci = host.hci;
-        pub const att = host.att;
-        pub const gap = host.gap;
-        pub const l2cap = host.l2cap;
     };
 
     pub const drivers = struct {
@@ -167,17 +106,13 @@ pub const pkg = struct {
     };
 
     pub const event = struct {
-        pub const types = @import("pkg/event/types.zig");
-        pub const bus = @import("pkg/event/bus.zig");
-        pub const ring_buffer = @import("pkg/event/ring_buffer.zig");
-
-        pub const PeriphEvent = types.PeriphEvent;
-        pub const CustomEvent = types.CustomEvent;
-        pub const TimerEvent = types.TimerEvent;
-        pub const SystemEvent = types.SystemEvent;
-        pub const Bus = bus.Bus;
-        pub const EventInjector = bus.EventInjector;
-        pub const RingBuffer = ring_buffer.RingBuffer;
+        pub const PeriphEvent = @import("pkg/event/types.zig").PeriphEvent;
+        pub const CustomEvent = @import("pkg/event/types.zig").CustomEvent;
+        pub const TimerEvent = @import("pkg/event/types.zig").TimerEvent;
+        pub const SystemEvent = @import("pkg/event/types.zig").SystemEvent;
+        pub const Bus = @import("pkg/event/bus.zig").Bus;
+        pub const EventInjector = @import("pkg/event/bus.zig").EventInjector;
+        pub const RingBuffer = @import("pkg/event/ring_buffer.zig").RingBuffer;
 
         pub const button = struct {
             pub const events = @import("pkg/event/button/event.zig");

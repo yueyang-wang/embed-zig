@@ -5,15 +5,16 @@ const resampler = embed.pkg.audio.resampler;
 
 const StdRuntime = embed.runtime.std;
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 const testing = std.testing;
 const TestEngine = engine.Engine(StdRuntime);
+const RawMutex = @typeInfo(@TypeOf(@as(StdRuntime.Mutex, undefined).impl)).pointer.child;
+const RawTime = @typeInfo(@TypeOf(@as(StdRuntime.Time, undefined).impl)).pointer.child;
+
+var engine_raw_mutex: RawMutex = RawMutex.init();
+var engine_raw_time: RawTime = .{};
 
 fn newEngine(config: TestEngine.Config) !TestEngine {
-    return TestEngine.init(testing.allocator, config, StdRuntime.Mutex.init(), StdRuntime.Time{});
+    return TestEngine.init(testing.allocator, config, StdRuntime.Mutex.init(&engine_raw_mutex), StdRuntime.Time.init(&engine_raw_time));
 }
 
 const test_frame_size: u32 = 8;

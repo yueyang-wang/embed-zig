@@ -3,45 +3,38 @@
 const Seal = struct {};
 
 /// Construct a sealed Mutex wrapper from a backend Impl type.
-/// Impl must provide: init, deinit, lock, unlock.
+/// Impl must provide: lock, unlock.
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn () Impl, &Impl.init);
-        _ = @as(*const fn (*Impl) void, &Impl.deinit);
         _ = @as(*const fn (*Impl) void, &Impl.lock);
         _ = @as(*const fn (*Impl) void, &Impl.unlock);
     }
 
-    const MutexType = struct {
-        impl: Impl,
+    return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn init() @This() {
-            return .{ .impl = Impl.init() };
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn deinit(self: *@This()) void {
-            self.impl.deinit();
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
         }
 
-        pub fn lock(self: *@This()) void {
+        pub fn lock(self: Self) void {
             self.impl.lock();
         }
 
-        pub fn unlock(self: *@This()) void {
+        pub fn unlock(self: Self) void {
             self.impl.unlock();
         }
     };
-    return is(MutexType);
 }
 
-/// Validate that Impl satisfies the sealed Mutex contract.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: mutex.Seal — use mutex.Make(Backend) to construct");
-        }
-    }
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

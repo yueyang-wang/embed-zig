@@ -9,30 +9,33 @@ pub const Error = error{
 const Seal = struct {};
 
 /// Construct a sealed System wrapper from a backend Impl type.
-/// Impl must provide: getCpuCount(self: Impl) Error!usize
+/// Impl must provide: getCpuCount(self: *const Impl) Error!usize
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (Impl) Error!usize, &Impl.getCpuCount);
+        _ = @as(*const fn (*const Impl) Error!usize, &Impl.getCpuCount);
     }
 
-    const SystemType = struct {
-        const impl: Impl = .{};
+    return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn getCpuCount(_: @This()) Error!usize {
-            return impl.getCpuCount();
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
+        }
+
+        pub fn getCpuCount(self: Self) Error!usize {
+            return self.impl.getCpuCount();
         }
     };
-    return is(SystemType);
 }
 
-/// Validate that Impl satisfies the sealed System contract.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: system.Seal — use system.Make(Backend) to construct");
-        }
-    }
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

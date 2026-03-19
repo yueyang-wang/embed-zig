@@ -20,6 +20,9 @@ const Resampler = resampler_mod.Resampler;
 pub fn Buffer(comptime Runtime: type) type {
     comptime _ = embed.runtime.is(Runtime);
 
+    const RawMutex = @typeInfo(@TypeOf(@as(Runtime.Mutex, undefined).impl)).pointer.child;
+    const RawCondition = @typeInfo(@TypeOf(@as(Runtime.Condition, undefined).impl)).pointer.child;
+
     return struct {
         const Self = @This();
 
@@ -28,8 +31,8 @@ pub fn Buffer(comptime Runtime: type) type {
         len: usize,
         capacity: usize,
         closed: bool,
-        mutex: Runtime.Mutex,
-        not_full: Runtime.Condition,
+        raw_mutex: RawMutex,
+        raw_cond: RawCondition,
 
         pub fn init(allocator: Allocator, capacity: usize) Allocator.Error!Self {
             const items = try allocator.alloc(i16, capacity);
@@ -39,29 +42,28 @@ pub fn Buffer(comptime Runtime: type) type {
                 .len = 0,
                 .capacity = capacity,
                 .closed = false,
-                .mutex = Runtime.Mutex.init(),
-                .not_full = Runtime.Condition.init(),
+                .raw_mutex = RawMutex.init(),
+                .raw_cond = RawCondition.init(),
             };
         }
 
         pub fn deinit(self: *Self) void {
-            self.not_full.deinit();
-            self.mutex.deinit();
+            self.raw_cond.deinit();
+            self.raw_mutex.deinit();
             self.allocator.free(self.items);
             self.* = undefined;
         }
 
-        /// Blocking write — appends samples, waiting when buffer is full.
         pub fn write(self: *Self, samples: []const i16) error{Closed}!void {
             var offset: usize = 0;
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
 
             while (offset < samples.len) {
                 if (self.closed) return error.Closed;
 
                 while (self.len >= self.capacity and !self.closed) {
-                    self.not_full.wait(&self.mutex);
+                    self.raw_cond.wait(&self.raw_mutex);
                 }
                 if (self.closed) return error.Closed;
 
@@ -73,10 +75,9 @@ pub fn Buffer(comptime Runtime: type) type {
             }
         }
 
-        /// Non-blocking write — appends as many samples as space allows.
         pub fn tryWrite(self: *Self, samples: []const i16) error{Closed}!usize {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             if (self.closed) return error.Closed;
 
             const space = self.capacity - self.len;
@@ -87,19 +88,16 @@ pub fn Buffer(comptime Runtime: type) type {
             return n;
         }
 
-        /// Non-blocking read — consumes up to `out.len` samples.
         pub fn read(self: *Self, out: []i16) usize {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             return self.readLocked(out);
         }
 
-        /// Readable slice of buffered data (caller must hold lock).
         pub fn readableSlice(self: *Self) []const i16 {
             return self.items[0..self.len];
         }
 
-        /// Consume `n` samples from the front (caller must hold lock).
         pub fn consumeLocked(self: *Self, n: usize) void {
             const actual = @min(n, self.len);
             if (actual == 0) return;
@@ -108,33 +106,33 @@ pub fn Buffer(comptime Runtime: type) type {
                 std.mem.copyForwards(i16, self.items[0..remaining], self.items[actual..self.len]);
             }
             self.len = remaining;
-            self.not_full.signal();
+            self.raw_cond.signal();
         }
 
         pub fn lock(self: *Self) void {
-            self.mutex.lock();
+            self.raw_mutex.lock();
         }
 
         pub fn unlock(self: *Self) void {
-            self.mutex.unlock();
+            self.raw_mutex.unlock();
         }
 
         pub fn count(self: *Self) usize {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             return self.len;
         }
 
         pub fn close(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             self.closed = true;
-            self.not_full.broadcast();
+            self.raw_cond.broadcast();
         }
 
         pub fn isClosed(self: *Self) bool {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             return self.closed;
         }
 
@@ -151,6 +149,7 @@ pub fn Buffer(comptime Runtime: type) type {
 pub fn Mixer(comptime Runtime: type) type {
     comptime _ = embed.runtime.is(Runtime);
 
+    const MixerRawMutex = @typeInfo(@TypeOf(@as(Runtime.Mutex, undefined).impl)).pointer.child;
     const BufferType = Buffer(Runtime);
 
     return struct {
@@ -178,16 +177,16 @@ pub fn Mixer(comptime Runtime: type) type {
 
         allocator: Allocator,
         config: Config,
-        mutex: Runtime.Mutex,
+        raw_mutex: *MixerRawMutex,
         close_write: bool = false,
         close_err: bool = false,
         tracks: std.ArrayList(*TrackCtrl),
 
-        pub fn init(allocator: Allocator, config: Config, mutex: Runtime.Mutex) Self {
+        pub fn init(allocator: Allocator, config: Config, raw_mutex: *MixerRawMutex) Self {
             return .{
                 .allocator = allocator,
                 .config = config,
-                .mutex = mutex,
+                .raw_mutex = raw_mutex,
                 .tracks = .empty,
             };
         }
@@ -198,12 +197,12 @@ pub fn Mixer(comptime Runtime: type) type {
                 self.allocator.destroy(ctrl);
             }
             self.tracks.deinit(self.allocator);
-            self.mutex.deinit();
+            self.raw_mutex.deinit();
         }
 
         pub fn createTrack(self: *Self, config: TrackConfig) error{ Closed, OutOfMemory }!TrackHandle {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             if (self.close_write or self.close_err) return error.Closed;
 
             const ctrl = try self.allocator.create(TrackCtrl);
@@ -214,8 +213,8 @@ pub fn Mixer(comptime Runtime: type) type {
         }
 
         pub fn destroyTrackCtrl(self: *Self, ctrl: *TrackCtrl) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
 
             var i: usize = 0;
             while (i < self.tracks.items.len) : (i += 1) {
@@ -229,8 +228,8 @@ pub fn Mixer(comptime Runtime: type) type {
         }
 
         pub fn closeWrite(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             self.close_write = true;
             for (self.tracks.items) |t| {
                 t.closed = true;
@@ -243,8 +242,8 @@ pub fn Mixer(comptime Runtime: type) type {
         }
 
         pub fn closeWithError(self: *Self) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
             self.close_err = true;
             self.close_write = true;
             for (self.tracks.items) |t| {
@@ -262,8 +261,8 @@ pub fn Mixer(comptime Runtime: type) type {
         pub fn read(self: *Self, buf: []i16) ?usize {
             if (buf.len == 0) return 0;
 
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            self.raw_mutex.lock();
+            defer self.raw_mutex.unlock();
 
             @memset(buf, 0);
             var has_data = false;

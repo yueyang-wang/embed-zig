@@ -25,14 +25,9 @@ const MockI2c = struct {
     }
 };
 
-const MockI2cSpec = struct {
-    pub const Driver = MockI2c;
-    pub const meta = .{ .id = "test.i2c" };
-};
-
 test "Es7210 basic operations" {
     var mock = MockI2c{};
-    var adc = es7210.Es7210(MockI2cSpec).init(&mock, .{
+    var adc = es7210.Es7210(MockI2c).init(&mock, .{
         .mic_select = .{ .mic1 = true, .mic2 = true, .mic3 = true },
     });
 

@@ -57,28 +57,27 @@ pub fn Make(comptime Impl: type) type {
         _ = @as(*const fn (*Impl, []const u8, OpenMode) ?File, &Impl.open);
     }
 
-    const FsType = struct {
-        impl: Impl,
+    return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn init() @This() {
-            return .{ .impl = .{} };
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn open(self: *@This(), path: []const u8, mode: OpenMode) ?File {
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
+        }
+
+        pub fn open(self: Self, path: []const u8, mode: OpenMode) ?File {
             return self.impl.open(path, mode);
         }
     };
-    return is(FsType);
 }
 
-/// Validate that Impl satisfies the sealed FileSystem contract.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: fs.Seal — use fs.Make(Backend) to construct");
-        }
-    }
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

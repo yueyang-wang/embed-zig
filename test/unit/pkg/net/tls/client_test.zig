@@ -444,8 +444,10 @@ test "concurrent close_notify sets received flag" {
 test "mutex lock/unlock cycle under contention" {
     const Runtime = Std;
     const Mutex = Runtime.Mutex;
+    const RawMutex = @typeInfo(@TypeOf(@as(Mutex, undefined).impl)).pointer.child;
 
-    var mu = Mutex.init();
+    var raw_mu = RawMutex.init();
+    var mu = Mutex.init(&raw_mu);
     defer mu.deinit();
 
     var counter: u64 = 0;

@@ -1,91 +1,71 @@
-//! IMU HAL wrapper.
-
-const hal_marker = @import("marker.zig");
-
-pub const Error = error{
-    NotReady,
-    Timeout,
-    InvalidData,
-    BusError,
-    SensorError,
-};
+//! HAL IMU Contract
+//!
+//! Inertial measurement unit providing accelerometer and gyroscope
+//! data. The driver handles I2C/SPI communication, register
+//! configuration, and sampling internally.
+//! Upper layers poll for sensor samples via pollEvent().
+//!
+//! Impl must provide:
+//!   pollEvent: fn (*Impl) Sample
+//!   sample:    fn (*const Impl) Sample
 
 pub const AccelData = struct {
-    x: f32 = 0,
-    y: f32 = 0,
-    z: f32 = 0,
+    x: f32,
+    y: f32,
+    z: f32,
+
+    pub fn magnitude(self: AccelData) f32 {
+        return @sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
+    }
 };
 
 pub const GyroData = struct {
-    x: f32 = 0,
-    y: f32 = 0,
-    z: f32 = 0,
+    x: f32,
+    y: f32,
+    z: f32,
+
+    pub fn magnitude(self: GyroData) f32 {
+        return @sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
+    }
 };
 
-pub const MagData = struct {
-    x: f32 = 0,
-    y: f32 = 0,
-    z: f32 = 0,
+pub const Sample = struct {
+    accel: AccelData,
+    gyro: GyroData,
 };
 
-pub fn is(comptime T: type) bool {
-    if (@typeInfo(T) != .@"struct") return false;
-    if (!@hasDecl(T, "_hal_marker")) return false;
-    const marker = T._hal_marker;
-    if (@TypeOf(marker) != hal_marker.Marker) return false;
-    return marker.kind == .imu;
-}
+const Seal = struct {};
 
-pub fn from(comptime spec: type) type {
-    const BaseDriver = comptime switch (@typeInfo(spec.Driver)) {
-        .pointer => |p| p.child,
-        else => spec.Driver,
-    };
-
+pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (*BaseDriver) Error!AccelData, &BaseDriver.readAccel);
-        _ = @as(*const fn (*BaseDriver) Error!GyroData, &BaseDriver.readGyro);
-        _ = @as(*const fn (*BaseDriver) Error!MagData, &BaseDriver.readMag);
-        _ = @as(*const fn (*BaseDriver) Error!bool, &BaseDriver.isDataReady);
-
-        _ = @as([]const u8, spec.meta.id);
+        _ = @as(*const fn (*Impl) Sample, &Impl.pollEvent);
+        _ = @as(*const fn (*const Impl) Sample, &Impl.sample);
     }
 
-    const Driver = spec.Driver;
     return struct {
+        pub const seal: Seal = .{};
+        driver: *Impl,
+
         const Self = @This();
 
-        pub const _hal_marker: hal_marker.Marker = .{
-            .kind = .imu,
-            .id = spec.meta.id,
-        };
-        pub const DriverType = Driver;
-        pub const meta = spec.meta;
-
-        pub const has_accel = true;
-        pub const has_gyro = true;
-        pub const has_mag = true;
-
-        driver: *Driver,
-
-        pub fn init(driver: *Driver) Self {
+        pub fn init(driver: *Impl) Self {
             return .{ .driver = driver };
         }
 
-        pub fn readAccel(self: *Self) Error!AccelData {
-            return self.driver.readAccel();
+        pub fn deinit(self: *Self) void {
+            self.driver = undefined;
         }
 
-        pub fn readGyro(self: *Self) Error!GyroData {
-            return self.driver.readGyro();
+        pub fn pollEvent(self: Self) Sample {
+            return self.driver.pollEvent();
         }
 
-        pub fn readMag(self: *Self) Error!MagData {
-            return self.driver.readMag();
-        }
-
-        pub fn isDataReady(self: *Self) Error!bool {
-            return self.driver.isDataReady();
+        pub fn sample(self: Self) Sample {
+            return self.driver.sample();
         }
     };
+}
+
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

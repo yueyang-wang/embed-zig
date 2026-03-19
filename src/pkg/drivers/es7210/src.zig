@@ -316,12 +316,11 @@ pub const Config = struct {
 };
 
 /// ES7210 4-Channel ADC Driver
-/// Generic over I2C bus type for platform independence.
-/// `I2cBus` must provide `write(addr: u7, data: []const u8) !void`
-/// and `writeRead(addr: u7, data: []const u8, out: []u8) !void`.
-pub fn Es7210(comptime I2cSpec: type) type {
-    const I2c = embed.hal.i2c.from(I2cSpec);
-
+/// Generic over I2C driver type for platform independence.
+/// `I2cDriver` must provide:
+///   write(self: *I2cDriver, addr: u7, data: []const u8) !void
+///   writeRead(self: *I2cDriver, addr: u7, data: []const u8, out: []u8) !void
+pub fn Es7210(comptime I2cDriver: type) type {
     return struct {
         const Self = @This();
 
@@ -332,7 +331,7 @@ pub fn Es7210(comptime I2cSpec: type) type {
         pub const channel_count: u8 = 4;
         pub const max_gain_db: i8 = 37;
 
-        bus: I2c,
+        bus: *I2cDriver,
         config: Config,
         is_open: bool = false,
         enabled: bool = false,
@@ -340,9 +339,9 @@ pub fn Es7210(comptime I2cSpec: type) type {
         clock_off_reg: u8 = 0,
 
         /// Initialize driver with I2C driver and configuration
-        pub fn init(driver: *I2c.DriverType, config: Config) Self {
+        pub fn init(driver: *I2cDriver, config: Config) Self {
             return .{
-                .bus = I2c.init(driver),
+                .bus = driver,
                 .config = config,
             };
         }

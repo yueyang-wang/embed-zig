@@ -4,35 +4,39 @@ const Seal = struct {};
 
 /// Construct a Time wrapper from an Impl type.
 /// Impl must provide:
-///   pub fn nowMs(Impl) u64
-///   pub fn sleepMs(Impl, u32) void
+///   pub fn nowMs(*const Impl) u64
+///   pub fn sleepMs(*Impl, u32) void
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (Impl) u64, &Impl.nowMs);
-        _ = @as(*const fn (Impl, u32) void, &Impl.sleepMs);
+        _ = @as(*const fn (*const Impl) u64, &Impl.nowMs);
+        _ = @as(*const fn (*Impl, u32) void, &Impl.sleepMs);
     }
-    const TimeType = struct {
-        const impl: Impl = .{};
-        pub const seal: Seal = .{};
 
-        pub fn nowMs(_: @This()) u64 {
-            return impl.nowMs();
+    return struct {
+        pub const seal: Seal = .{};
+        impl: *Impl,
+
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn sleepMs(_: @This(), ms: u32) void {
-            impl.sleepMs(ms);
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
+        }
+
+        pub fn nowMs(self: Self) u64 {
+            return self.impl.nowMs();
+        }
+
+        pub fn sleepMs(self: Self, ms: u32) void {
+            self.impl.sleepMs(ms);
         }
     };
-    return is(TimeType);
 }
 
-/// Validate that Impl satisfies the Time contract and return it.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: time.Seal — use time.Make(Backend) to construct");
-        }
-    }
-
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

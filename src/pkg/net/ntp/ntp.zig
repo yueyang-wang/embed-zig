@@ -50,8 +50,10 @@ pub const NTP_UNIX_OFFSET: i64 = 2208988800;
 pub fn generateNonce(comptime Runtime: type) i64 {
     comptime _ = runtime_suite.is(Runtime);
 
+    const RawRng = @typeInfo(@TypeOf(@as(Runtime.Rng, undefined).impl)).pointer.child;
     var buf: [8]u8 = undefined;
-    var rng_inst = Runtime.Rng.init();
+    var raw_rng: RawRng = .{};
+    var rng_inst = Runtime.Rng.init(&raw_rng);
     rng_inst.fill(&buf) catch return 1;
     // Convert to i64, ensure non-zero (0 is reserved)
     const raw = std.mem.readInt(i64, &buf, .little);

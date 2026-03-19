@@ -599,9 +599,11 @@ pub fn ClientHandshake(comptime Conn: type, comptime Runtime: type) type {
                 else
                     std.time.timestamp();
 
-                var store = Runtime.Crypto.X509.init(self.allocator) catch {
+                const RawX509 = @typeInfo(@TypeOf(@as(Runtime.Crypto.X509, undefined).impl)).pointer.child;
+                var raw_x509 = RawX509.init(self.allocator) catch {
                     return error.CertificateVerificationFailed;
                 };
+                var store = Runtime.Crypto.X509.init(&raw_x509);
                 defer store.deinit();
 
                 store.verifyChain(

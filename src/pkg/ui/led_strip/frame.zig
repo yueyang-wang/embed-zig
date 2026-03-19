@@ -1,7 +1,7 @@
 const std = @import("std");
 const embed = @import("../../../mod.zig");
 
-const Color = embed.hal.led_strip.Color;
+pub const Color = embed.hal.led_group.Color;
 
 pub fn Frame(comptime n: u32) type {
     return struct {

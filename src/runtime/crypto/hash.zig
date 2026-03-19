@@ -2,67 +2,46 @@
 
 const Seal = struct {};
 
-pub fn Make(comptime factory: fn (comptime usize) type) type {
+pub fn Make(comptime Impl: type) type {
+    comptime {
+        _ = @as(*const fn (*Impl, []const u8) void, &Impl.update);
+        _ = @as(*const fn (*Impl, []const u8, *[32]u8) void, &Impl.sha256);
+        _ = @as(*const fn (*Impl, []const u8, *[48]u8) void, &Impl.sha384);
+        _ = @as(*const fn (*Impl, []const u8, *[64]u8) void, &Impl.sha512);
+    }
+
     return struct {
         pub const seal: Seal = .{};
+        impl: *Impl,
 
-        pub fn Hash(comptime digest_len: usize) type {
-            const Impl = factory(digest_len);
+        const Self = @This();
 
-            comptime {
-                if (!@hasDecl(Impl, "digest_length") or Impl.digest_length != digest_len) {
-                    @compileError("Hash.digest_length mismatch");
-                }
-
-                _ = @as(*const fn () Impl, &Impl.init);
-                _ = @as(*const fn (*Impl, []const u8) void, &Impl.update);
-                _ = @as(*const fn (*Impl) [digest_len]u8, &Impl.final);
-                _ = @as(*const fn ([]const u8, *[digest_len]u8) void, &Impl.hash);
-            }
-
-            return struct {
-                pub const digest_length = digest_len;
-                pub const BackendType = Impl;
-
-                impl: Impl,
-
-                pub fn init() @This() {
-                    return .{ .impl = Impl.init() };
-                }
-
-                pub fn update(self: *@This(), data: []const u8) void {
-                    self.impl.update(data);
-                }
-
-                pub fn final(self: *@This()) [digest_len]u8 {
-                    return self.impl.final();
-                }
-
-                pub fn hash(data: []const u8, out: *[digest_len]u8) void {
-                    Impl.hash(data, out);
-                }
-            };
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn Sha256() type {
-            return Hash(32);
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
         }
 
-        pub fn Sha384() type {
-            return Hash(48);
+        pub fn update(self: Self, data: []const u8) void {
+            self.impl.update(data);
         }
 
-        pub fn Sha512() type {
-            return Hash(64);
+        pub fn sha256(self: Self, data: []const u8, out: *[32]u8) void {
+            self.impl.sha256(data, out);
+        }
+
+        pub fn sha384(self: Self, data: []const u8, out: *[48]u8) void {
+            self.impl.sha384(data, out);
+        }
+
+        pub fn sha512(self: Self, data: []const u8, out: *[64]u8) void {
+            self.impl.sha512(data, out);
         }
     };
 }
 
-pub fn is(comptime T: type) type {
-    comptime {
-        if (!@hasDecl(T, "seal") or @TypeOf(T.seal) != Seal) {
-            @compileError("Impl must have pub const seal: hash.Seal — use hash.Make(factory) to construct");
-        }
-    }
-    return T;
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

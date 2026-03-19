@@ -7,34 +7,33 @@ pub const Error = error{
 const Seal = struct {};
 
 /// Construct a sealed Rng wrapper from a backend Impl type.
-/// Impl must provide: fill(self: Impl, buf: []u8) Error!void
+/// Impl must provide: fill(self: *Impl, buf: []u8) Error!void
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (Impl, []u8) Error!void, &Impl.fill);
+        _ = @as(*const fn (*Impl, []u8) Error!void, &Impl.fill);
     }
 
-    const RngType = struct {
-        impl: Impl,
+    return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn init() @This() {
-            return .{ .impl = .{} };
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn fill(self: @This(), buf: []u8) Error!void {
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
+        }
+
+        pub fn fill(self: Self, buf: []u8) Error!void {
             return self.impl.fill(buf);
         }
     };
-    return is(RngType);
 }
 
-/// Validate that Impl satisfies the sealed Rng contract.
-pub fn is(comptime Impl: type) type {
-    comptime {
-        if (!@hasDecl(Impl, "seal") or @TypeOf(Impl.seal) != Seal) {
-            @compileError("Impl must have pub const seal: rng.Seal — use rng.Make(Backend) to construct");
-        }
-    }
-    return Impl;
+/// Check whether T has been sealed via Make().
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

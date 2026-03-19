@@ -3,10 +3,7 @@ const embed = @import("embed");
 const mixer_mod = embed.pkg.audio.mixer;
 
 const StdRuntime = embed.runtime.std;
-
-// ---------------------------------------------------------------------------
-// MixerBuffer tests
-// ---------------------------------------------------------------------------
+const RawMutex = @typeInfo(@TypeOf(@as(StdRuntime.Mutex, undefined).impl)).pointer.child;
 
 const testing = std.testing;
 const TestBuf = mixer_mod.Buffer(StdRuntime);
@@ -126,8 +123,10 @@ test "mixer buffer write blocks then unblocks on read" {
 
 const TestMx = mixer_mod.Mixer(StdRuntime);
 
+var mixer_raw_mutex: RawMutex = RawMutex.init();
+
 fn newMixer(config: TestMx.Config) TestMx {
-    return TestMx.init(testing.allocator, config, StdRuntime.Mutex.init());
+    return TestMx.init(testing.allocator, config, &mixer_raw_mutex);
 }
 
 fn readAll(mx: *TestMx, allocator: std.mem.Allocator) ![]i16 {
@@ -574,25 +573,25 @@ test "concurrency: stalled track does not block active track output" {
 
 const MockSock = struct {
     allocator: std.mem.Allocator,
-    mutex: StdRuntime.Mutex,
+    raw_mutex: RawMutex,
     bytes: std.ArrayList(u8),
 
     fn init(allocator: std.mem.Allocator) MockSock {
         return .{
             .allocator = allocator,
-            .mutex = StdRuntime.Mutex.init(),
+            .raw_mutex = RawMutex.init(),
             .bytes = .empty,
         };
     }
 
     fn deinit(self: *MockSock) void {
         self.bytes.deinit(self.allocator);
-        self.mutex.deinit();
+        self.raw_mutex.deinit();
     }
 
     fn writeSamples(self: *MockSock, samples: []const i16) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.raw_mutex.lock();
+        defer self.raw_mutex.unlock();
         for (samples) |s| {
             const b: [2]u8 = @bitCast(s);
             try self.bytes.appendSlice(self.allocator, &b);
@@ -600,8 +599,8 @@ const MockSock = struct {
     }
 
     fn decodeSamples(self: *MockSock, allocator: std.mem.Allocator) ![]i16 {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.raw_mutex.lock();
+        defer self.raw_mutex.unlock();
         const n = self.bytes.items.len / 2;
         var out = try allocator.alloc(i16, n);
         for (0..n) |i| {

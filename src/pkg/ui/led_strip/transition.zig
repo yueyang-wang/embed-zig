@@ -2,7 +2,7 @@ const std = @import("std");
 const embed = @import("../../../mod.zig");
 const frame_mod = @import("frame.zig");
 
-const Color = embed.hal.led_strip.Color;
+const Color = embed.hal.led_group.Color;
 
 pub fn stepChannel(cur: u8, tgt: u8, amount: u8) u8 {
     if (cur < tgt) {

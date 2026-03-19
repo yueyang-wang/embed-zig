@@ -11,34 +11,39 @@ pub const DerKey = struct {
 
 pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn ([]const u8, []const u8, []const u8, HashType) anyerror!void, &Impl.verifyPKCS1v1_5);
-        _ = @as(*const fn ([]const u8, []const u8, []const u8, HashType) anyerror!void, &Impl.verifyPSS);
-        _ = @as(*const fn ([]const u8) anyerror!DerKey, &Impl.parseDer);
+        _ = @as(*const fn (*Impl, []const u8, []const u8, []const u8, HashType) anyerror!void, &Impl.verifyPKCS1v1_5);
+        _ = @as(*const fn (*Impl, []const u8, []const u8, []const u8, HashType) anyerror!void, &Impl.verifyPSS);
+        _ = @as(*const fn (*Impl, []const u8) anyerror!DerKey, &Impl.parseDer);
     }
 
     return struct {
         pub const seal: Seal = .{};
-        pub const BackendType = Impl;
+        impl: *Impl,
 
-        pub fn verifyPKCS1v1_5(sig: []const u8, msg: []const u8, pk: []const u8, hash_type: HashType) !void {
-            return Impl.verifyPKCS1v1_5(sig, msg, pk, hash_type);
+        const Self = @This();
+
+        pub fn init(driver: *Impl) Self {
+            return .{ .impl = driver };
         }
 
-        pub fn verifyPSS(sig: []const u8, msg: []const u8, pk: []const u8, hash_type: HashType) !void {
-            return Impl.verifyPSS(sig, msg, pk, hash_type);
+        pub fn deinit(self: *Self) void {
+            self.impl = undefined;
         }
 
-        pub fn parseDer(pub_key: []const u8) !DerKey {
-            return Impl.parseDer(pub_key);
+        pub fn verifyPKCS1v1_5(self: Self, sig: []const u8, msg: []const u8, pk: []const u8, hash_type: HashType) !void {
+            return self.impl.verifyPKCS1v1_5(sig, msg, pk, hash_type);
+        }
+
+        pub fn verifyPSS(self: Self, sig: []const u8, msg: []const u8, pk: []const u8, hash_type: HashType) !void {
+            return self.impl.verifyPSS(sig, msg, pk, hash_type);
+        }
+
+        pub fn parseDer(self: Self, pub_key: []const u8) !DerKey {
+            return self.impl.parseDer(pub_key);
         }
     };
 }
 
-pub fn is(comptime T: type) type {
-    comptime {
-        if (!@hasDecl(T, "seal") or @TypeOf(T.seal) != Seal) {
-            @compileError("Impl must have pub const seal: rsa.Seal — use rsa.Make(Backend) to construct");
-        }
-    }
-    return T;
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }

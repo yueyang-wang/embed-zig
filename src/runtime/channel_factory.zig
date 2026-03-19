@@ -21,55 +21,51 @@ pub fn Make(comptime impl: fn (type) type) type {
         pub const seal: FactorySeal = .{};
 
         pub fn Channel(comptime T: type) type {
-            const Impl = impl(T);
+            const Ch = impl(T);
 
             comptime {
-                _ = @as(*const fn () void, &Impl.isSelectable);
-                _ = @as(*const fn (*Impl, T) anyerror!SendResult(), &Impl.send);
-                _ = @as(*const fn (*Impl) anyerror!RecvResult(T), &Impl.recv);
-                _ = @as(*const fn (*Impl) void, &Impl.close);
-                _ = @as(*const fn (*Impl) void, &Impl.deinit);
-                _ = @as(*const fn (std.mem.Allocator, usize) anyerror!Impl, &Impl.init);
+                _ = @as(*const fn () void, &Ch.isSelectable);
+                _ = @as(*const fn (*Ch, T) anyerror!SendResult(), &Ch.send);
+                _ = @as(*const fn (*Ch) anyerror!RecvResult(T), &Ch.recv);
+                _ = @as(*const fn (*Ch) void, &Ch.close);
+                _ = @as(*const fn (*Ch) void, &Ch.deinit);
+                _ = @as(*const fn (std.mem.Allocator, usize) anyerror!Ch, &Ch.init);
             }
 
             return struct {
-                impl: Impl,
-
                 pub const event_t = T;
-                pub const BackendType = Impl;
+                pub const channel_t = Ch;
+
+
+                ch: channel_t,
 
                 pub fn init(allocator: std.mem.Allocator, capacity: usize) !@This() {
                     return .{
-                        .impl = try Impl.init(allocator, capacity),
+                        .ch = try Ch.init(allocator, capacity),
                     };
                 }
 
                 pub fn deinit(self: *@This()) void {
-                    self.impl.deinit();
+                    self.ch.deinit();
                 }
 
                 pub fn close(self: *@This()) void {
-                    self.impl.close();
+                    self.ch.close();
                 }
 
                 pub fn send(self: *@This(), value: event_t) !SendResult() {
-                    return try self.impl.send(value);
+                    return try self.ch.send(value);
                 }
 
                 pub fn recv(self: *@This()) !RecvResult(T) {
-                    return try self.impl.recv();
+                    return try self.ch.recv();
                 }
             };
         }
     };
 }
 
-/// Validate that T is a sealed Channel Factory (produced by channel_factory.ChannelFactory).
-pub fn is(comptime T: type) type {
-    comptime {
-        if (!@hasDecl(T, "seal") or @TypeOf(T.seal) != FactorySeal) {
-            @compileError("expected a ChannelFactory — use channel_factory.Make(backend) to construct");
-        }
-    }
-    return T;
+/// Check whether T is a sealed Channel Factory (produced via Make).
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == FactorySeal;
 }

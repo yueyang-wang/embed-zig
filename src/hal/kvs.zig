@@ -1,122 +1,132 @@
-//! Key-value store HAL wrapper.
+//! HAL Key-Value Store Contract
+//!
+//! Persistent key-value storage backed by flash (NVS), EEPROM, or
+//! file-based storage depending on platform.
+//!
+//! Impl must provide:
+//!   get/set/delete/has for raw bytes,
+//!   getU32/setU32, getI32/setI32,
+//!   getU64/setU64, getI64/setI64,
+//!   getBool/setBool
+//!   for native primitive storage.
 
-const hal_marker = @import("marker.zig");
-
-pub const KvsError = error{
+pub const Error = error{
     NotFound,
-    BufferTooSmall,
-    InvalidKey,
-    StorageFull,
-    WriteError,
-    ReadError,
+    NoSpace,
+    KeyTooLong,
+    ValueTooLong,
+    TypeMismatch,
+    IoError,
+    Unexpected,
 };
 
-pub fn is(comptime T: type) bool {
-    if (@typeInfo(T) != .@"struct") return false;
-    if (!@hasDecl(T, "_hal_marker")) return false;
-    const marker = T._hal_marker;
-    if (@TypeOf(marker) != hal_marker.Marker) return false;
-    return marker.kind == .kvs;
-}
+const Seal = struct {};
 
-/// spec must define Driver with getU32/setU32/getString/setString/commit and meta.id.
-pub fn from(comptime spec: type) type {
-    const BaseDriver = comptime switch (@typeInfo(spec.Driver)) {
-        .pointer => |p| p.child,
-        else => spec.Driver,
-    };
-
+pub fn Make(comptime Impl: type) type {
     comptime {
-        _ = @as(*const fn (*BaseDriver, []const u8) KvsError!u32, &BaseDriver.getU32);
-        _ = @as(*const fn (*BaseDriver, []const u8, u32) KvsError!void, &BaseDriver.setU32);
-        _ = @as(*const fn (*BaseDriver, []const u8, []u8) KvsError![]const u8, &BaseDriver.getString);
-        _ = @as(*const fn (*BaseDriver, []const u8, []const u8) KvsError!void, &BaseDriver.setString);
-        _ = @as(*const fn (*BaseDriver) KvsError!void, &BaseDriver.commit);
-        _ = @as(*const fn (*BaseDriver, []const u8) KvsError!i32, &BaseDriver.getI32);
-        _ = @as(*const fn (*BaseDriver, []const u8, i32) KvsError!void, &BaseDriver.setI32);
-        _ = @as(*const fn (*BaseDriver, []const u8) KvsError!void, &BaseDriver.erase);
-        _ = @as(*const fn (*BaseDriver) KvsError!void, &BaseDriver.eraseAll);
+        // bytes
+        _ = @as(*const fn (*Impl, []const u8, []u8) Error!usize, &Impl.get);
+        _ = @as(*const fn (*Impl, []const u8, []const u8) Error!void, &Impl.set);
+        _ = @as(*const fn (*Impl, []const u8) Error!void, &Impl.delete);
+        _ = @as(*const fn (*const Impl, []const u8) bool, &Impl.has);
 
-        _ = @as([]const u8, spec.meta.id);
+        // u32 / i32
+        _ = @as(*const fn (*Impl, []const u8) Error!u32, &Impl.getU32);
+        _ = @as(*const fn (*Impl, []const u8, u32) Error!void, &Impl.setU32);
+        _ = @as(*const fn (*Impl, []const u8) Error!i32, &Impl.getI32);
+        _ = @as(*const fn (*Impl, []const u8, i32) Error!void, &Impl.setI32);
+
+        // u64 / i64
+        _ = @as(*const fn (*Impl, []const u8) Error!u64, &Impl.getU64);
+        _ = @as(*const fn (*Impl, []const u8, u64) Error!void, &Impl.setU64);
+        _ = @as(*const fn (*Impl, []const u8) Error!i64, &Impl.getI64);
+        _ = @as(*const fn (*Impl, []const u8, i64) Error!void, &Impl.setI64);
+
+        // bool
+        _ = @as(*const fn (*Impl, []const u8) Error!bool, &Impl.getBool);
+        _ = @as(*const fn (*Impl, []const u8, bool) Error!void, &Impl.setBool);
     }
 
-    const Driver = spec.Driver;
     return struct {
+        pub const seal: Seal = .{};
+        driver: *Impl,
+
         const Self = @This();
 
-        pub const _hal_marker: hal_marker.Marker = .{
-            .kind = .kvs,
-            .id = spec.meta.id,
-        };
-        pub const DriverType = Driver;
-        pub const meta = spec.meta;
-
-        driver: *Driver,
-
-        pub fn init(driver: *Driver) Self {
+        pub fn init(driver: *Impl) Self {
             return .{ .driver = driver };
         }
 
-        pub fn getU32(self: *Self, key: []const u8) !u32 {
+        pub fn deinit(self: *Self) void {
+            self.driver = undefined;
+        }
+
+        // -- bytes --
+
+        pub fn get(self: Self, key: []const u8, buf: []u8) Error!usize {
+            return self.driver.get(key, buf);
+        }
+
+        pub fn set(self: Self, key: []const u8, value: []const u8) Error!void {
+            return self.driver.set(key, value);
+        }
+
+        pub fn delete(self: Self, key: []const u8) Error!void {
+            return self.driver.delete(key);
+        }
+
+        pub fn has(self: Self, key: []const u8) bool {
+            return self.driver.has(key);
+        }
+
+        // -- u32 / i32 --
+
+        pub fn getU32(self: Self, key: []const u8) Error!u32 {
             return self.driver.getU32(key);
         }
 
-        pub fn setU32(self: *Self, key: []const u8, value: u32) !void {
+        pub fn setU32(self: Self, key: []const u8, value: u32) Error!void {
             return self.driver.setU32(key, value);
         }
 
-        pub fn getU32OrDefault(self: *Self, key: []const u8, default: u32) u32 {
-            return self.getU32(key) catch default;
-        }
-
-        pub fn getI32(self: *Self, key: []const u8) !i32 {
+        pub fn getI32(self: Self, key: []const u8) Error!i32 {
             return self.driver.getI32(key);
         }
 
-        pub fn setI32(self: *Self, key: []const u8, value: i32) !void {
+        pub fn setI32(self: Self, key: []const u8, value: i32) Error!void {
             return self.driver.setI32(key, value);
         }
 
-        pub fn getString(self: *Self, key: []const u8, buf: []u8) ![]const u8 {
-            return self.driver.getString(key, buf);
+        // -- u64 / i64 --
+
+        pub fn getU64(self: Self, key: []const u8) Error!u64 {
+            return self.driver.getU64(key);
         }
 
-        pub fn setString(self: *Self, key: []const u8, value: []const u8) !void {
-            return self.driver.setString(key, value);
+        pub fn setU64(self: Self, key: []const u8, value: u64) Error!void {
+            return self.driver.setU64(key, value);
         }
 
-        pub fn getBool(self: *Self, key: []const u8) !bool {
-            return (try self.getU32(key)) != 0;
+        pub fn getI64(self: Self, key: []const u8) Error!i64 {
+            return self.driver.getI64(key);
         }
 
-        pub fn setBool(self: *Self, key: []const u8, value: bool) !void {
-            return self.setU32(key, if (value) 1 else 0);
+        pub fn setI64(self: Self, key: []const u8, value: i64) Error!void {
+            return self.driver.setI64(key, value);
         }
 
-        pub fn commit(self: *Self) !void {
-            return self.driver.commit();
+        // -- bool --
+
+        pub fn getBool(self: Self, key: []const u8) Error!bool {
+            return self.driver.getBool(key);
         }
 
-        pub fn erase(self: *Self, key: []const u8) !void {
-            return self.driver.erase(key);
-        }
-
-        pub fn eraseAll(self: *Self) !void {
-            return self.driver.eraseAll();
-        }
-
-        pub fn increment(self: *Self, key: []const u8) !u32 {
-            const cur = self.getU32OrDefault(key, 0);
-            const next = cur +| 1;
-            try self.setU32(key, next);
-            return next;
-        }
-
-        pub fn decrement(self: *Self, key: []const u8) !u32 {
-            const cur = self.getU32OrDefault(key, 0);
-            const next = cur -| 1;
-            try self.setU32(key, next);
-            return next;
+        pub fn setBool(self: Self, key: []const u8, value: bool) Error!void {
+            return self.driver.setBool(key, value);
         }
     };
+}
+
+pub fn is(comptime T: type) bool {
+    return @hasDecl(T, "seal") and @TypeOf(T.seal) == Seal;
 }
